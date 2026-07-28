@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ titulo }}</h1>
+        <p class="muted">Captura y mantiene la informacion del catalogo interno.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Volver al listado</a>
+    </div>
+</div>
+
+<div class="card">
+    {% if form.non_field_errors %}
+        <div class="alert alert-error" role="alert">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <form class="form-grid" method="post">
+        {% csrf_token %}
+
+        <div class="form-field">
+            <label for="{{ form.numero_parte.id_for_label }}">{{ form.numero_parte.label }}</label>
+            {{ form.numero_parte }}
+            <span class="muted">Identificador unico interno.</span>
+            {% if form.numero_parte.errors %}
+                <div class="field-error">{{ form.numero_parte.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="{{ form.modelo.id_for_label }}">{{ form.modelo.label }}</label>
+            {{ form.modelo }}
+            {% if form.modelo.errors %}
+                <div class="field-error">{{ form.modelo.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }}</label>
+            {{ form.descripcion }}
+            {% if form.descripcion.errors %}
+                <div class="field-error">{{ form.descripcion.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="{{ form.fraccion.id_for_label }}">{{ form.fraccion.label }}</label>
+            {{ form.fraccion }}
+            <span class="muted">Fraccion arancelaria si aplica.</span>
+            {% if form.fraccion.errors %}
+                <div class="field-error">{{ form.fraccion.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

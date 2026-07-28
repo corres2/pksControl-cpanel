@@ -1,0 +1,57 @@
+{% if resultado %}
+    <div class="card">
+        <div class="page-header">
+            <div>
+                <h2 class="page-title">Resultado</h2>
+                {% if resultado.errores %}
+                    <span class="badge badge-warning">Con errores</span>
+                {% else %}
+                    <span class="badge badge-ok">Sin errores</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="quick-card">
+                <strong>Procesadas</strong>
+                <span class="muted">{{ resultado.procesadas }}</span>
+            </div>
+            <div class="quick-card">
+                <strong>Creadas</strong>
+                <span class="muted">{{ resultado.creadas }}</span>
+            </div>
+            <div class="quick-card">
+                <strong>Actualizadas</strong>
+                <span class="muted">{{ resultado.actualizadas }}</span>
+            </div>
+            <div class="quick-card">
+                <strong>Errores</strong>
+                <span class="muted">{{ resultado.errores|length }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if resultado.errores %}
+        <div class="card">
+            <h2>Errores detectados</h2>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fila</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for error in resultado.errores %}
+                            <tr>
+                                <td>{{ error.fila }}</td>
+                                <td>{{ error.error }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+{% endif %}

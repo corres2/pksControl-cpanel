@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Estado del sistema - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Estado del sistema</h1>
+        <p class="muted">Resumen operativo del servidor actual.</p>
+    </div>
+</div>
+
+<div class="card-grid">
+    <div class="card">
+        <h2>Servidor</h2>
+        <dl class="detail-list">
+            <div>
+                <dt>Servidor</dt>
+                <dd>{{ server_name }}</dd>
+            </div>
+
+            <div>
+                <dt>Version</dt>
+                <dd>{{ app_version }}</dd>
+            </div>
+
+            <div>
+                <dt>Debug</dt>
+                <dd>
+                    {% if debug %}
+                        <span class="badge badge-warning">Activo</span>
+                    {% else %}
+                        <span class="badge badge-ok">Inactivo</span>
+                    {% endif %}
+                </dd>
+            </div>
+
+            <div>
+                <dt>MySQL</dt>
+                <dd>
+                    {% if database_status == "OK" %}
+                        <span class="badge badge-ok">{{ database_status }}</span>
+                    {% else %}
+                        <span class="badge badge-error">{{ database_status }}</span>
+                    {% endif %}
+                </dd>
+            </div>
+
+            <div>
+                <dt>Fecha y hora del servidor</dt>
+                <dd>{{ server_time|date:"Y-m-d H:i:s T" }}</dd>
+            </div>
+
+            <div>
+                <dt>Commit Git</dt>
+                <dd>{{ git_commit }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <div class="card">
+        <h2>Ultimo estado registrado</h2>
+        {% if installation_status %}
+            <dl class="detail-list">
+                <div>
+                    <dt>Servidor registrado</dt>
+                    <dd>{{ installation_status.server_name }}</dd>
+                </div>
+
+                <div>
+                    <dt>Version registrada</dt>
+                    <dd>{{ installation_status.app_version }}</dd>
+                </div>
+
+                <div>
+                    <dt>Ultima actualizacion</dt>
+                    <dd>{{ installation_status.last_update_at|default:"No disponible" }}</dd>
+                </div>
+
+                <div>
+                    <dt>Estado de actualizacion</dt>
+                    <dd>{{ installation_status.last_update_status|default:"No disponible" }}</dd>
+                </div>
+
+                <div>
+                    <dt>Ultimo respaldo</dt>
+                    <dd>{{ installation_status.last_backup_path|default:"No disponible" }}</dd>
+                </div>
+            </dl>
+        {% else %}
+            <p class="muted">No hay estado registrado o la tabla aun no esta disponible.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

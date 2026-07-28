@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Catalogo SAT - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Claves SAT producto/servicio</h1>
+        <p class="muted">Consulta el catalogo SAT de claves de producto o servicio.</p>
+    </div>
+    <div class="page-actions">
+        {% if perms.catalogos.view_claveproductoserviciosat %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:exportar_sat_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">
+                Exportar CSV
+            </a>
+        {% endif %}
+        {% if perms.catalogos.puede_importar_claves_sat %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:importar_sat' %}">
+                Importar CSV
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <form class="form-grid" method="get">
+        <div class="card-grid">
+            <div class="form-field">
+                <label for="q">Buscar</label>
+                <input id="q" type="search" name="q" value="{{ q }}" placeholder="Clave, descripcion o palabras similares">
+            </div>
+            <div class="form-field">
+                <label for="iva">IVA trasladado</label>
+                <input id="iva" type="search" name="iva" value="{{ iva }}" placeholder="IVA">
+            </div>
+            <div class="form-field">
+                <label for="ieps">IEPS trasladado</label>
+                <input id="ieps" type="search" name="ieps" value="{{ ieps }}" placeholder="IEPS">
+            </div>
+            <div class="form-field">
+                <label for="vigente">Vigencia</label>
+                <select id="vigente" name="vigente">
+                    <option value="" {% if not vigente %}selected{% endif %}>Todos</option>
+                    <option value="1" {% if vigente == "1" %}selected{% endif %}>Vigentes</option>
+                </select>
+            </div>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Buscar</button>
+            <a class="btn btn-secondary" href="{% url 'catalogos:sat_list' %}">Limpiar filtros</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Clave</th>
+                    <th>Descripcion</th>
+                    <th>IVA trasladado</th>
+                    <th>IEPS trasladado</th>
+                    <th>Inicio vigencia</th>
+                    <th>Fin vigencia</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in page_obj %}
+                    <tr>
+                        <td>{{ item.clave }}</td>
+                        <td>{{ item.descripcion }}</td>
+                        <td>{{ item.incluir_iva_trasladado|default:"" }}</td>
+                        <td>{{ item.incluir_ieps_trasladado|default:"" }}</td>
+                        <td>{{ item.fecha_inicio_vigencia|date:"Y-m-d" }}</td>
+                        <td>{{ item.fecha_fin_vigencia|date:"Y-m-d" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6">No hay registros.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_previous %}
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        {% for numero in page_obj.paginator.page_range %}
+            {% if numero == page_obj.number %}
+                <span class="page-current">{{ numero }}</span>
+            {% elif numero >= page_obj.number|add:"-2" and numero <= page_obj.number|add:"2" %}
+                <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ numero }}">{{ numero }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

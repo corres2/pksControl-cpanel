@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ numero_parte.numero_parte }} - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Detalle numero de parte</h1>
+        <p class="muted">{{ numero_parte.numero_parte }}</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Volver al listado</a>
+        {% if perms.catalogos.change_numeroparte %}
+            <a class="btn btn-primary" href="{% url 'catalogos:numero_parte_update' numero_parte.pk %}">Editar</a>
+            {% if numero_parte.activo %}
+                <form method="post" action="{% url 'catalogos:numero_parte_inactivar' numero_parte.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-danger-light" type="submit">Inactivar</button>
+                </form>
+            {% else %}
+                <form method="post" action="{% url 'catalogos:numero_parte_activar' numero_parte.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-secondary" type="submit">Activar</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <dl class="detail-list">
+        <div>
+            <dt>Numero de parte</dt>
+            <dd>{{ numero_parte.numero_parte }}</dd>
+        </div>
+
+        <div>
+            <dt>Modelo</dt>
+            <dd>{{ numero_parte.modelo|default:"" }}</dd>
+        </div>
+
+        <div>
+            <dt>Descripcion</dt>
+            <dd>{{ numero_parte.descripcion }}</dd>
+        </div>
+
+        <div>
+            <dt>Fraccion</dt>
+            <dd>{{ numero_parte.fraccion|default:"" }}</dd>
+        </div>
+
+        <div>
+            <dt>Estado</dt>
+            <dd>
+                {% if numero_parte.activo %}
+                    <span class="badge badge-ok">Activo</span>
+                {% else %}
+                    <span class="badge badge-warning">Inactivo</span>
+                {% endif %}
+            </dd>
+        </div>
+
+        <div>
+            <dt>Creado</dt>
+            <dd>{{ numero_parte.created_at|date:"Y-m-d H:i" }}</dd>
+        </div>
+
+        <div>
+            <dt>Actualizado</dt>
+            <dd>{{ numero_parte.updated_at|date:"Y-m-d H:i" }}</dd>
+        </div>
+    </dl>
+</div>
+{% endblock %}

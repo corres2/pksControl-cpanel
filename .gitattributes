@@ -1,0 +1,13 @@
+# Mantener scripts Linux con saltos LF
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.py text eol=lf
+
+# Windows PowerShell puede quedarse CRLF
+*.ps1 text eol=crlf
+
+# Archivos comunes
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.env.example text eol=lf

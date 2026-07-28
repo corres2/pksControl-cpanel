@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de inicio - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Panel de inicio</h1>
+        <p class="muted">Bienvenido, {{ request.user.get_username }}.</p>
+    </div>
+    <div class="page-actions">
+        <span class="badge badge-ok">Version {{ app_version }}</span>
+    </div>
+</div>
+
+<div class="card-grid">
+    <a class="quick-card" href="{% url 'system_status' %}">
+        <strong>Estado del sistema</strong>
+        <span class="muted">Servidor, version y conexion MySQL.</span>
+    </a>
+
+    {% if perms.catalogos.view_numeroparte %}
+        <a class="quick-card" href="{% url 'catalogos:numeros_parte_list' %}">
+            <strong>Numeros de parte</strong>
+            <span class="muted">Consulta del catalogo interno.</span>
+        </a>
+    {% endif %}
+
+    {% if perms.catalogos.add_numeroparte %}
+        <a class="quick-card" href="{% url 'catalogos:numero_parte_create' %}">
+            <strong>Nuevo numero de parte</strong>
+            <span class="muted">Alta manual en el catalogo interno.</span>
+        </a>
+    {% endif %}
+
+    {% if perms.catalogos.puede_importar_numeroparte %}
+        <a class="quick-card" href="{% url 'catalogos:importar_numeros_parte' %}">
+            <strong>Importar numeros de parte</strong>
+            <span class="muted">Carga CSV por posicion de columna.</span>
+        </a>
+    {% endif %}
+
+    {% if perms.catalogos.view_claveproductoserviciosat %}
+        <a class="quick-card" href="{% url 'catalogos:sat_list' %}">
+            <strong>Claves SAT</strong>
+            <span class="muted">Consulta de claves producto o servicio.</span>
+        </a>
+    {% endif %}
+
+    {% if perms.catalogos.puede_importar_claves_sat %}
+        <a class="quick-card" href="{% url 'catalogos:importar_sat' %}">
+            <strong>Importar claves SAT</strong>
+            <span class="muted">Carga CSV del catalogo SAT.</span>
+        </a>
+    {% endif %}
+
+    {% if perms.catalogos.puede_ver_historial_cargas_catalogo %}
+        <a class="quick-card" href="{% url 'catalogos:cargas_list' %}">
+            <strong>Historial de cargas</strong>
+            <span class="muted">Revision de cargas realizadas.</span>
+        </a>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ titulo }}</h1>
+        <p class="muted">Captura general del documento operativo.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Volver</a>
+    </div>
+</div>
+
+<div class="card">
+    <form class="form-grid" method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="form-field">
+            <label for="{{ form.observaciones.id_for_label }}">{{ form.observaciones.label }}</label>
+            {{ form.observaciones }}
+            {% if form.observaciones.errors %}
+                <div class="field-error">{{ form.observaciones.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Guardar</button>
+            <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

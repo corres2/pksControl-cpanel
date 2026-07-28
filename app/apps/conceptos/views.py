@@ -1,0 +1,601 @@
+from django.contrib import messages
+from django.contrib.auth.decorators import permission_required
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+
+from apps.catalogos.models import NumeroParte
+from apps.conceptos.exportacion import exportar_documento_conceptos_docx
+from apps.conceptos.forms import ConceptoForm, DocumentoConceptosForm
+from apps.conceptos.importacion import (
+    analizar_archivo_conceptos,
+    confirmar_importacion_conceptos,
+)
+from apps.conceptos.models import (
+    Concepto,
+    DocumentoConceptos,
+    HistorialCoincidencia,
+    PatronSerie,
+    registrar_historial_concepto,
+)
+
+
+ACCION_BUSCAR_NUMERO_PARTE = 'buscar_numero_parte'
+ACCION_BUSCAR_SERIE = 'buscar_serie'
+ACCION_BUSCAR_HISTORIAL = 'buscar_historial'
+ACCION_USAR_SUGERENCIA = 'usar_sugerencia'
+SESSION_IMPORTACION_PREFIX = 'conceptos_importacion_'
+
+
+@permission_required('conceptos.view_documentoconceptos')
+def documentos_list(request):
+    queryset = DocumentoConceptos.objects.select_related('usuario').order_by('-created_at')
+    page_obj = Paginator(queryset, 25).get_page(request.GET.get('page'))
+    return render(
+        request,
+        'conceptos/documentos_list.html',
+        {'page_obj': page_obj},
+    )
+
+
+@permission_required('conceptos.add_documentoconceptos')
+def documento_create(request):
+    form = DocumentoConceptosForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        documento = form.save(commit=False)
+        documento.usuario = request.user if request.user.is_authenticated else None
+        documento.save()
+        messages.success(request, 'Documento creado correctamente.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    return render(
+        request,
+        'conceptos/documento_form.html',
+        {'form': form, 'titulo': 'Nuevo documento'},
+    )
+
+
+@permission_required('conceptos.view_documentoconceptos')
+def documento_detail(request, pk):
+    documento = get_object_or_404(
+        DocumentoConceptos.objects.select_related('usuario').prefetch_related('conceptos'),
+        pk=pk,
+    )
+    return render(
+        request,
+        'conceptos/documento_detail.html',
+        {'documento': documento},
+    )
+
+
+@permission_required('conceptos.view_documentoconceptos')
+def documento_exportar_word(request, pk):
+    documento = get_object_or_404(
+        DocumentoConceptos.objects.select_related('usuario').prefetch_related('conceptos'),
+        pk=pk,
+    )
+    return exportar_documento_conceptos_docx(documento)
+
+
+@permission_required('conceptos.change_documentoconceptos')
+def documento_update(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if not documento.es_borrador:
+        messages.error(request, 'Solo se pueden editar documentos en borrador.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    form = DocumentoConceptosForm(request.POST or None, instance=documento)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Documento actualizado correctamente.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    return render(
+        request,
+        'conceptos/documento_form.html',
+        {'form': form, 'titulo': f'Editar {documento.folio}', 'documento': documento},
+    )
+
+
+@permission_required('conceptos.change_documentoconceptos')
+def conceptos_importar(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if not documento.es_borrador:
+        messages.error(request, 'Solo se pueden importar conceptos en documentos en borrador.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    preview = None
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Selecciona un archivo CSV o XLSX.')
+        else:
+            try:
+                preview = analizar_archivo_conceptos(archivo, documento=documento)
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            else:
+                request.session[_importacion_session_key(documento)] = preview
+                request.session.modified = True
+
+    return render(
+        request,
+        'conceptos/importar_conceptos.html',
+        {'documento': documento, 'preview': preview},
+    )
+
+
+@require_POST
+@permission_required('conceptos.change_documentoconceptos')
+def conceptos_importar_confirmar(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if not documento.es_borrador:
+        messages.error(request, 'Solo se pueden importar conceptos en documentos en borrador.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    session_key = _importacion_session_key(documento)
+    preview = request.session.get(session_key)
+    if not preview:
+        messages.error(request, 'No hay una importacion pendiente por confirmar.')
+        return redirect('conceptos:conceptos_importar', pk=documento.pk)
+    if not preview['resumen']['validas']:
+        messages.error(request, 'No hay filas validas para importar.')
+        return redirect('conceptos:conceptos_importar', pk=documento.pk)
+
+    usar_para_biblioteca = request.POST.get('usar_para_biblioteca') == '1'
+    creados = confirmar_importacion_conceptos(
+        documento,
+        preview['filas'],
+        usuario=request.user,
+        usar_para_biblioteca=usar_para_biblioteca,
+    )
+    del request.session[session_key]
+    request.session.modified = True
+    messages.success(request, f'Conceptos importados correctamente: {creados}.')
+    return redirect('conceptos:documento_detail', pk=documento.pk)
+
+
+def _importacion_session_key(documento):
+    return f'{SESSION_IMPORTACION_PREFIX}{documento.pk}'
+
+
+@permission_required('conceptos.change_documentoconceptos')
+def concepto_create(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if not documento.es_borrador:
+        messages.error(request, 'Solo se pueden agregar conceptos en borrador.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    form = ConceptoForm(request.POST or None, documento=documento)
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_BUSCAR_NUMERO_PARTE:
+        form, sugerencias = _buscar_numero_parte_en_form(request, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {
+                'form': form,
+                'documento': documento,
+                'titulo': 'Agregar concepto',
+                'sugerencias': sugerencias,
+            },
+        )
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_BUSCAR_SERIE:
+        form, sugerencias = _buscar_serie_en_form(request, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {
+                'form': form,
+                'documento': documento,
+                'titulo': 'Agregar concepto',
+                'sugerencias': sugerencias,
+            },
+        )
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_BUSCAR_HISTORIAL:
+        form, sugerencias = _buscar_historial_en_form(request, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {
+                'form': form,
+                'documento': documento,
+                'titulo': 'Agregar concepto',
+                'sugerencias': sugerencias,
+            },
+        )
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_USAR_SUGERENCIA:
+        form = _usar_sugerencia_en_form(request, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {'form': form, 'documento': documento, 'titulo': 'Agregar concepto'},
+        )
+
+    if request.method == 'POST' and form.is_valid():
+        concepto = form.save(commit=False)
+        concepto.documento = documento
+        concepto.save()
+        messages.success(request, 'Concepto agregado correctamente.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    return render(
+        request,
+        'conceptos/concepto_form.html',
+        {'form': form, 'documento': documento, 'titulo': 'Agregar concepto'},
+    )
+
+
+@permission_required('conceptos.change_documentoconceptos')
+def concepto_update(request, pk, concepto_id):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    concepto = get_object_or_404(Concepto, pk=concepto_id, documento=documento)
+    if not documento.es_borrador:
+        messages.error(request, 'Solo se pueden editar conceptos en borrador.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    form = ConceptoForm(request.POST or None, instance=concepto, documento=documento)
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_BUSCAR_NUMERO_PARTE:
+        form, sugerencias = _buscar_numero_parte_en_form(request, instance=concepto, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {
+                'form': form,
+                'documento': documento,
+                'concepto': concepto,
+                'titulo': 'Editar concepto',
+                'sugerencias': sugerencias,
+            },
+        )
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_BUSCAR_SERIE:
+        form, sugerencias = _buscar_serie_en_form(request, instance=concepto, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {
+                'form': form,
+                'documento': documento,
+                'concepto': concepto,
+                'titulo': 'Editar concepto',
+                'sugerencias': sugerencias,
+            },
+        )
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_BUSCAR_HISTORIAL:
+        form, sugerencias = _buscar_historial_en_form(request, instance=concepto, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {
+                'form': form,
+                'documento': documento,
+                'concepto': concepto,
+                'titulo': 'Editar concepto',
+                'sugerencias': sugerencias,
+            },
+        )
+    if request.method == 'POST' and request.POST.get('accion') == ACCION_USAR_SUGERENCIA:
+        form = _usar_sugerencia_en_form(request, instance=concepto, documento=documento)
+        return render(
+            request,
+            'conceptos/concepto_form.html',
+            {'form': form, 'documento': documento, 'concepto': concepto, 'titulo': 'Editar concepto'},
+        )
+
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Concepto actualizado correctamente.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    return render(
+        request,
+        'conceptos/concepto_form.html',
+        {'form': form, 'documento': documento, 'concepto': concepto, 'titulo': 'Editar concepto'},
+    )
+
+
+@require_POST
+@permission_required('conceptos.delete_documentoconceptos')
+def concepto_delete(request, pk, concepto_id):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    concepto = get_object_or_404(Concepto, pk=concepto_id, documento=documento)
+    if not documento.es_borrador:
+        messages.error(request, 'Solo se pueden quitar conceptos en borrador.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    concepto.delete()
+    messages.success(request, 'Concepto eliminado correctamente.')
+    return redirect('conceptos:documento_detail', pk=documento.pk)
+
+
+@require_POST
+@permission_required('conceptos.change_documentoconceptos', raise_exception=True)
+def concepto_subir(request, pk, concepto_id):
+    return _reordenar_concepto(request, pk, concepto_id, direccion='subir')
+
+
+@require_POST
+@permission_required('conceptos.change_documentoconceptos', raise_exception=True)
+def concepto_bajar(request, pk, concepto_id):
+    return _reordenar_concepto(request, pk, concepto_id, direccion='bajar')
+
+
+def _reordenar_concepto(request, pk, concepto_id, direccion):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    concepto = get_object_or_404(Concepto, pk=concepto_id, documento=documento)
+    es_ajax = _es_ajax(request)
+    if documento.status == DocumentoConceptos.STATUS_CANCELADO:
+        if es_ajax:
+            return JsonResponse(
+                {'ok': False, 'error': 'No se pueden reordenar documentos cancelados.'},
+                status=400,
+            )
+        messages.error(request, 'No se pueden reordenar documentos cancelados.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    _normalizar_ordenes(documento)
+    conceptos = list(documento.conceptos.order_by('orden', 'pk'))
+    posicion = next(
+        (index for index, item in enumerate(conceptos) if item.pk == concepto.pk),
+        None,
+    )
+    if posicion is None:
+        if es_ajax:
+            return JsonResponse({'ok': False, 'error': 'Concepto no encontrado.'}, status=404)
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    destino = posicion - 1 if direccion == 'subir' else posicion + 1
+    if destino < 0 or destino >= len(conceptos):
+        if es_ajax:
+            return JsonResponse(
+                {'ok': False, 'error': 'El concepto ya esta en el limite del orden.'},
+                status=400,
+            )
+        messages.warning(request, 'El concepto ya esta en el limite del orden.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    actual = conceptos[posicion]
+    otro = conceptos[destino]
+    Concepto.objects.filter(pk=actual.pk).update(orden=otro.orden)
+    Concepto.objects.filter(pk=otro.pk).update(orden=actual.orden)
+    if es_ajax:
+        return JsonResponse(
+            {
+                'ok': True,
+                'concepto_id': actual.pk,
+                'accion': direccion,
+            }
+        )
+    messages.success(request, 'Orden actualizado correctamente.')
+    return redirect('conceptos:documento_detail', pk=documento.pk)
+
+
+def _es_ajax(request):
+    return request.headers.get('x-requested-with') == 'XMLHttpRequest'
+
+
+def _normalizar_ordenes(documento):
+    conceptos = list(documento.conceptos.order_by('orden', 'pk'))
+    for posicion, concepto in enumerate(conceptos, start=1):
+        if concepto.orden != posicion:
+            Concepto.objects.filter(pk=concepto.pk).update(orden=posicion)
+
+
+def _buscar_numero_parte_en_form(request, instance=None, documento=None):
+    datos = _datos_concepto_desde_post(request)
+    encontrado = _aplicar_numero_parte_activo(request, datos, avisar_sin_numero=True)
+    sugerencias = []
+    if not encontrado and datos.get('numero_parte'):
+        sugerencias = _buscar_sugerencias_patron_por_numero_parte(datos['numero_parte'])
+        if sugerencias:
+            messages.info(request, 'Selecciona una sugerencia de Patron para precargar datos.')
+        else:
+            messages.warning(
+                request,
+                'No se encontro numero de parte activo; puedes capturar los datos manualmente.',
+            )
+
+    return ConceptoForm(initial=datos, instance=instance, documento=documento), sugerencias
+
+
+def _buscar_serie_en_form(request, instance=None, documento=None):
+    datos = _datos_concepto_desde_post(request)
+    sugerencias = []
+    if not datos.get('serie'):
+        messages.warning(request, 'Captura una serie para buscar patron.')
+    else:
+        sugerencias = _buscar_sugerencias_patron_por_serie(datos['serie'])
+        if sugerencias:
+            messages.info(request, 'Selecciona una sugerencia de Patron para precargar datos.')
+        else:
+            messages.warning(request, 'No se encontraron patrones activos para la serie.')
+
+    return ConceptoForm(initial=datos, instance=instance, documento=documento), sugerencias
+
+
+def _buscar_historial_en_form(request, instance=None, documento=None):
+    datos = _datos_concepto_desde_post(request)
+    debe_buscar_historial = bool(datos.get('numero_parte') or datos.get('serie'))
+    sugerencias = _buscar_sugerencias_historial(datos) if debe_buscar_historial else []
+
+    if sugerencias:
+        messages.info(request, 'Selecciona una sugerencia de Historial para precargar datos.')
+    elif debe_buscar_historial:
+        messages.warning(
+            request,
+            'No se encontraron coincidencias en historial confirmado.',
+        )
+    else:
+        messages.warning(request, 'Captura numero de parte o serie para buscar historial.')
+
+    return ConceptoForm(initial=datos, instance=instance, documento=documento), sugerencias
+
+
+def _usar_sugerencia_en_form(request, instance=None, documento=None):
+    datos = _datos_concepto_desde_post(request)
+    if request.POST.get('sugerencia_origen') == 'patron':
+        datos['numero_parte'] = request.POST.get('sugerencia_numero_parte', '').strip()
+        datos['modelo'] = request.POST.get('sugerencia_modelo', '').strip()
+        datos['descripcion'] = request.POST.get('sugerencia_descripcion', '').strip()
+    else:
+        sugerencia = get_object_or_404(
+            HistorialCoincidencia,
+            pk=request.POST.get('sugerencia_id'),
+        )
+        datos['numero_parte'] = sugerencia.numero_parte
+        if not datos.get('serie'):
+            datos['serie'] = sugerencia.serie
+        datos['modelo'] = sugerencia.modelo
+        datos['descripcion'] = sugerencia.descripcion
+    messages.success(request, 'Sugerencia aplicada. Revisa los datos y guarda el concepto.')
+
+    return ConceptoForm(initial=datos, instance=instance, documento=documento)
+
+
+def _datos_concepto_desde_post(request):
+    datos = {campo: request.POST.get(campo, '') for campo in ConceptoForm.Meta.fields}
+    for campo in ('numero_parte', 'serie', 'descripcion'):
+        datos[campo] = datos.get(campo, '').strip()
+    return datos
+
+
+def _aplicar_numero_parte_activo(request, datos, avisar_sin_numero=False):
+    numero_parte = datos.get('numero_parte', '').strip().upper()
+    datos['numero_parte'] = numero_parte
+    if not numero_parte:
+        if avisar_sin_numero:
+            messages.warning(
+                request,
+                'Captura un numero de parte para buscar.',
+            )
+        return False
+
+    try:
+        parte = NumeroParte.objects.get(numero_parte__iexact=numero_parte)
+    except NumeroParte.DoesNotExist:
+        return False
+
+    if not parte.activo:
+        messages.warning(
+            request,
+            'El numero de parte existe pero esta inactivo.',
+        )
+        return False
+
+    datos['modelo'] = parte.modelo
+    datos['descripcion'] = parte.descripcion
+    messages.success(request, 'Catalogo: numero de parte activo encontrado.')
+    return True
+
+
+def _buscar_sugerencias_historial(datos):
+    numero_parte = datos.get('numero_parte', '').strip().upper()
+    serie = datos.get('serie', '').strip().upper()
+    if not numero_parte and not serie:
+        return []
+
+    queryset = HistorialCoincidencia.objects.exclude(
+        numero_parte='',
+        serie='',
+        descripcion='',
+    )
+    if numero_parte:
+        queryset = queryset.filter(numero_parte__iexact=numero_parte)
+    if serie:
+        queryset = queryset.filter(serie__iexact=serie)
+
+    return [
+        _sugerencia_desde_historial(historial)
+        for historial in queryset.order_by('-created_at', '-id')[:10]
+    ]
+
+
+def _sugerencia_desde_historial(historial):
+    return {
+        'id': historial.pk,
+        'origen': 'historial',
+        'origen_label': 'Historial',
+        'numero_parte': historial.numero_parte,
+        'serie': historial.serie,
+        'modelo': historial.modelo,
+        'descripcion': historial.descripcion,
+        'precio_unitario': '',
+        'prefix': '',
+        'sample_size': '',
+        'confidence': '',
+    }
+
+
+def _patrones_activos():
+    return PatronSerie.objects.filter(
+        activo=True,
+        campo_identificador=PatronSerie.CAMPO_SERIE,
+    ).order_by('-updated_at', '-id')
+
+
+def _buscar_sugerencias_patron_por_numero_parte(numero_parte):
+    numero_parte = (numero_parte or '').strip().upper()
+    if not numero_parte:
+        return []
+    patrones = PatronSerie.objects.filter(
+        activo=True,
+        campo_identificador=PatronSerie.CAMPO_SERIE,
+        numero_parte__iexact=numero_parte,
+    ).order_by('prefix', '-updated_at', '-id')
+    return [_sugerencia_desde_patron(patron) for patron in patrones[:10]]
+
+
+def _buscar_sugerencias_patron_por_serie(serie):
+    serie = (serie or '').strip().upper()
+    if not serie:
+        return []
+    patrones = _patrones_activos()
+    matches = [patron for patron in patrones if serie.startswith(patron.prefix)]
+    if not matches:
+        return []
+
+    matches = sorted(matches, key=lambda item: (-len(item.prefix), item.prefix, item.numero_parte))
+    longitud_ganadora = len(matches[0].prefix)
+    ganadores = [patron for patron in matches if len(patron.prefix) == longitud_ganadora]
+    return [_sugerencia_desde_patron(patron) for patron in ganadores[:10]]
+
+
+def _sugerencia_desde_patron(patron):
+    return {
+        'id': '',
+        'origen': 'patron',
+        'origen_label': 'Patron',
+        'numero_parte': patron.numero_parte,
+        'serie': '',
+        'modelo': patron.modelo,
+        'descripcion': patron.descripcion,
+        'precio_unitario': '',
+        'prefix': patron.prefix,
+        'sample_size': patron.sample_size,
+        'confidence': patron.confidence,
+    }
+
+
+@require_POST
+@permission_required('conceptos.puede_confirmar_documentoconceptos')
+def documento_confirmar(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if documento.status == DocumentoConceptos.STATUS_BORRADOR:
+        documento.status = DocumentoConceptos.STATUS_CONFIRMADO
+        documento.save(update_fields=['status', 'updated_at'])
+        for concepto in documento.conceptos.all():
+            registrar_historial_concepto(concepto, usuario=request.user)
+        messages.success(request, 'Documento confirmado correctamente.')
+    return redirect('conceptos:documento_detail', pk=documento.pk)
+
+
+@require_POST
+@permission_required('conceptos.puede_cancelar_documentoconceptos')
+def documento_cancelar(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if documento.status != DocumentoConceptos.STATUS_CANCELADO:
+        documento.status = DocumentoConceptos.STATUS_CANCELADO
+        documento.save(update_fields=['status', 'updated_at'])
+        messages.success(request, 'Documento cancelado correctamente.')
+    return redirect('conceptos:documento_detail', pk=documento.pk)

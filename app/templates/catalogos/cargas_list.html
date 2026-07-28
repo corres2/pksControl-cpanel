@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de cargas - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Historial de cargas</h1>
+        <p class="muted">Consulta las importaciones realizadas en catalogos.</p>
+    </div>
+    <div class="page-actions">
+        {% if perms.catalogos.puede_ver_historial_cargas_catalogo %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:exportar_cargas_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">
+                Exportar CSV
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <form class="form-grid" method="get">
+        {% if fecha_error %}
+            <div class="alert alert-error">{{ fecha_error }}</div>
+        {% endif %}
+        <div class="card-grid">
+            <div class="form-field">
+                <label for="q">Buscar</label>
+                <input id="q" type="search" name="q" value="{{ q }}" placeholder="Tipo, archivo o estado">
+            </div>
+            <div class="form-field">
+                <label for="fecha_desde">Fecha desde</label>
+                <input id="fecha_desde" type="date" name="fecha_desde" value="{{ fecha_desde }}">
+            </div>
+            <div class="form-field">
+                <label for="fecha_hasta">Fecha hasta</label>
+                <input id="fecha_hasta" type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+            </div>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Buscar</button>
+            <a class="btn btn-secondary" href="{% url 'catalogos:cargas_list' %}">Limpiar filtros</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Archivo</th>
+                    <th>Usuario</th>
+                    <th>Procesadas</th>
+                    <th>Creadas</th>
+                    <th>Actualizadas</th>
+                    <th>Errores</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for carga in page_obj %}
+                    <tr>
+                        <td>{{ carga.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ carga.tipo_catalogo }}</td>
+                        <td>{{ carga.archivo_nombre }}</td>
+                        <td>{{ carga.usuario|default:"" }}</td>
+                        <td>{{ carga.total_procesadas }}</td>
+                        <td>{{ carga.total_creadas }}</td>
+                        <td>{{ carga.total_actualizadas }}</td>
+                        <td>{{ carga.total_errores }}</td>
+                        <td>
+                            {% if carga.estado == "exitosa" %}
+                                <span class="badge badge-ok">{{ carga.estado }}</span>
+                            {% elif carga.estado == "con_errores" %}
+                                <span class="badge badge-warning">{{ carga.estado }}</span>
+                            {% elif carga.estado == "fallida" %}
+                                <span class="badge badge-error">{{ carga.estado }}</span>
+                            {% else %}
+                                <span class="badge">{{ carga.estado }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9">No hay cargas registradas.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_previous %}
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        {% for numero in page_obj.paginator.page_range %}
+            {% if numero == page_obj.number %}
+                <span class="page-current">{{ numero }}</span>
+            {% elif numero >= page_obj.number|add:"-2" and numero <= page_obj.number|add:"2" %}
+                <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ numero }}">{{ numero }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

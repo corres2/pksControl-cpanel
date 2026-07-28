@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Numeros de parte - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Numeros de parte</h1>
+        <p class="muted">Consulta y administra el catalogo interno de numeros de parte.</p>
+    </div>
+    <div class="page-actions">
+        {% if perms.catalogos.view_numeroparte %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:exportar_numeros_parte_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">
+                Exportar CSV
+            </a>
+        {% endif %}
+        {% if perms.catalogos.add_numeroparte %}
+            <a class="btn btn-primary" href="{% url 'catalogos:numero_parte_create' %}">
+                Nuevo numero de parte
+            </a>
+        {% endif %}
+        {% if perms.catalogos.puede_importar_numeroparte %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:importar_numeros_parte' %}">
+                Importar CSV
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <form class="form-grid" method="get">
+        <div class="card-grid">
+            <div class="form-field">
+                <label for="q">Buscar</label>
+                <input id="q" type="search" name="q" value="{{ q }}" placeholder="Numero, modelo, descripcion o fraccion">
+            </div>
+            <div class="form-field">
+                <label for="modelo">Modelo</label>
+                <input id="modelo" type="search" name="modelo" value="{{ modelo }}" placeholder="Modelo">
+            </div>
+            <div class="form-field">
+                <label for="fraccion">Fraccion</label>
+                <input id="fraccion" type="search" name="fraccion" value="{{ fraccion }}" placeholder="Fraccion">
+            </div>
+            <div class="form-field">
+                <label for="estado">Estado</label>
+                <select id="estado" name="estado">
+                    <option value="activos" {% if estado == "activos" %}selected{% endif %}>Activos</option>
+                    <option value="inactivos" {% if estado == "inactivos" %}selected{% endif %}>Inactivos</option>
+                    <option value="todos" {% if estado == "todos" %}selected{% endif %}>Todos</option>
+                </select>
+            </div>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Buscar</button>
+            <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Limpiar filtros</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Numero de parte</th>
+                    <th>Modelo</th>
+                    <th>Descripcion</th>
+                    <th>Fraccion</th>
+                    <th>Estado</th>
+                    <th>Actualizado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in page_obj %}
+                    <tr>
+                        <td>
+                            {% if perms.catalogos.view_numeroparte %}
+                                <a href="{% url 'catalogos:numero_parte_detail' item.pk %}">
+                                    {{ item.numero_parte }}
+                                </a>
+                            {% else %}
+                                {{ item.numero_parte }}
+                            {% endif %}
+                        </td>
+                        <td>{{ item.modelo|default:"" }}</td>
+                        <td>{{ item.descripcion }}</td>
+                        <td>{{ item.fraccion|default:"" }}</td>
+                        <td>
+                            {% if item.activo %}
+                                <span class="badge badge-ok">Activo</span>
+                            {% else %}
+                                <span class="badge badge-warning">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.updated_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <div class="table-actions">
+                                {% if perms.catalogos.change_numeroparte %}
+                                    <a class="btn btn-secondary" href="{% url 'catalogos:numero_parte_update' item.pk %}">
+                                        Editar
+                                    </a>
+                                    {% if item.activo %}
+                                        <form method="post" action="{% url 'catalogos:numero_parte_inactivar' item.pk %}">
+                                            {% csrf_token %}
+                                            <button class="btn btn-danger-light" type="submit">Inactivar</button>
+                                        </form>
+                                    {% else %}
+                                        <form method="post" action="{% url 'catalogos:numero_parte_activar' item.pk %}">
+                                            {% csrf_token %}
+                                            <button class="btn btn-secondary" type="submit">Activar</button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7">No hay registros.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_previous %}
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+        {% endif %}
+        {% for numero in page_obj.paginator.page_range %}
+            {% if numero == page_obj.number %}
+                <span class="page-current">{{ numero }}</span>
+            {% elif numero >= page_obj.number|add:"-2" and numero <= page_obj.number|add:"2" %}
+                <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ numero }}">{{ numero }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

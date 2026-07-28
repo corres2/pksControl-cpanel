@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ titulo }}</h1>
+        <p class="muted">{{ documento.folio }}</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver</a>
+    </div>
+</div>
+
+<div class="card">
+    {% if form.non_field_errors %}
+        <div class="alert alert-error">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <form class="form-grid" method="post">
+        {% csrf_token %}
+        <div class="card-grid">
+            <div class="form-field">
+                <label for="{{ form.numero_parte.id_for_label }}">{{ form.numero_parte.label }}</label>
+                <div class="table-actions">
+                    {{ form.numero_parte }}
+                    <button class="btn btn-secondary" type="submit" name="accion" value="buscar_numero_parte" title="Buscar en catalogo y patrones">🔍</button>
+                </div>
+                {% if form.numero_parte.errors %}
+                    <div class="field-error">{{ form.numero_parte.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="form-field">
+                <label for="{{ form.serie.id_for_label }}">{{ form.serie.label }}</label>
+                <div class="table-actions">
+                    {{ form.serie }}
+                    <button class="btn btn-secondary" type="submit" name="accion" value="buscar_serie" title="Buscar patron por serie">🔍</button>
+                </div>
+                {% if form.serie.errors %}
+                    <div class="field-error">{{ form.serie.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="form-field">
+                <label for="{{ form.modelo.id_for_label }}">{{ form.modelo.label }}</label>
+                {{ form.modelo }}
+                {% if form.modelo.errors %}
+                    <div class="field-error">{{ form.modelo.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="form-field">
+                <label for="{{ form.cantidad.id_for_label }}">{{ form.cantidad.label }}</label>
+                {{ form.cantidad }}
+                {% if form.cantidad.errors %}
+                    <div class="field-error">{{ form.cantidad.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="form-field">
+                <label for="{{ form.precio_unitario.id_for_label }}">{{ form.precio_unitario.label }}</label>
+                {{ form.precio_unitario }}
+                {% if form.precio_unitario.errors %}
+                    <div class="field-error">{{ form.precio_unitario.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="form-field">
+                <label for="{{ form.orden.id_for_label }}">{{ form.orden.label }}</label>
+                {{ form.orden }}
+                {% if form.orden.errors %}
+                    <div class="field-error">{{ form.orden.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="form-field">
+            <label for="{{ form.descripcion.id_for_label }}">{{ form.descripcion.label }}</label>
+            {{ form.descripcion }}
+            {% if form.descripcion.errors %}
+                <div class="field-error">{{ form.descripcion.errors }}</div>
+            {% endif %}
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary" type="submit" name="accion" value="buscar_historial">Buscar historial</button>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit" name="accion" value="guardar">Guardar</button>
+            <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Cancelar</a>
+        </div>
+    </form>
+
+    {% if sugerencias %}
+        <div class="section-block">
+            <h2 class="section-title">Sugerencias</h2>
+            <p class="muted">Selecciona una sugerencia para precargar datos.</p>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Número de parte</th>
+                            <th>Serie</th>
+                            <th>Modelo</th>
+                            <th>Descripción</th>
+                            <th>Precio unitario</th>
+                            <th>Origen</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sugerencia in sugerencias %}
+                            <tr>
+                                <td>{{ sugerencia.numero_parte|default:"-" }}</td>
+                                <td>{{ sugerencia.serie|default:"-" }}</td>
+                                <td>{{ sugerencia.modelo|default:"-" }}</td>
+                                <td>{{ sugerencia.descripcion|default:"-" }}</td>
+                                <td>{{ sugerencia.precio_unitario|default:"-" }}</td>
+                                <td>
+                                    <span class="badge">{{ sugerencia.origen_label }}</span>
+                                    {% if sugerencia.prefix %}
+                                        <div class="muted">Prefix: {{ sugerencia.prefix }}</div>
+                                        <div class="muted">Muestra: {{ sugerencia.sample_size }} | Confianza: {{ sugerencia.confidence }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="post" class="table-actions">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="sugerencia_id" value="{{ sugerencia.id }}">
+                                        <input type="hidden" name="sugerencia_origen" value="{{ sugerencia.origen }}">
+                                        <input type="hidden" name="sugerencia_numero_parte" value="{{ sugerencia.numero_parte }}">
+                                        <input type="hidden" name="sugerencia_modelo" value="{{ sugerencia.modelo }}">
+                                        <input type="hidden" name="sugerencia_descripcion" value="{{ sugerencia.descripcion }}">
+                                        <input type="hidden" name="numero_parte" value="{{ form.numero_parte.value|default_if_none:'' }}">
+                                        <input type="hidden" name="serie" value="{{ form.serie.value|default_if_none:'' }}">
+                                        <input type="hidden" name="modelo" value="{{ form.modelo.value|default_if_none:'' }}">
+                                        <input type="hidden" name="descripcion" value="{{ form.descripcion.value|default_if_none:'' }}">
+                                        <input type="hidden" name="cantidad" value="{{ form.cantidad.value|default_if_none:'' }}">
+                                        <input type="hidden" name="precio_unitario" value="{{ form.precio_unitario.value|default_if_none:'' }}">
+                                        <input type="hidden" name="orden" value="{{ form.orden.value|default_if_none:'' }}">
+                                        <button class="btn btn-secondary" type="submit" name="accion" value="usar_sugerencia">Usar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}{{ documento.folio }} - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ documento.folio }}</h1>
+        <p class="muted">Detalle de documento de conceptos.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Volver</a>
+        <a class="btn btn-secondary" href="{% url 'conceptos:documento_exportar_word' documento.pk %}">Exportar Word</a>
+        {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
+            <a class="btn btn-secondary" href="{% url 'conceptos:documento_update' documento.pk %}">Editar</a>
+            <a class="btn btn-primary" href="{% url 'conceptos:concepto_create' documento.pk %}">Agregar concepto</a>
+            <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_importar' documento.pk %}">Importar conceptos</a>
+        {% endif %}
+        {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos %}
+            <form method="post" action="{% url 'conceptos:documento_confirmar' documento.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-primary" type="submit">Confirmar</button>
+            </form>
+        {% endif %}
+        {% if documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
+            <form method="post" action="{% url 'conceptos:documento_cancelar' documento.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-danger-light" type="submit">Cancelar</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <dl class="detail-list">
+        <div>
+            <dt>Estado</dt>
+            <dd>
+                {% if documento.status == "borrador" %}
+                    <span class="badge badge-warning">{{ documento.status }}</span>
+                {% elif documento.status == "confirmado" %}
+                    <span class="badge badge-ok">{{ documento.status }}</span>
+                {% elif documento.status == "cancelado" %}
+                    <span class="badge badge-error">{{ documento.status }}</span>
+                {% else %}
+                    <span class="badge">{{ documento.status }}</span>
+                {% endif %}
+            </dd>
+        </div>
+        <div>
+            <dt>Fuente</dt>
+            <dd>{{ documento.fuente }}</dd>
+        </div>
+        <div>
+            <dt>Total</dt>
+            <dd>{{ documento.total }}</dd>
+        </div>
+        <div>
+            <dt>Observaciones</dt>
+            <dd>{{ documento.observaciones|default:"" }}</dd>
+        </div>
+    </dl>
+</div>
+
+<div class="card">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">Conceptos</h2>
+            <p class="muted">Total general: {{ documento.total }}</p>
+        </div>
+    </div>
+    <div id="conceptos-ajax-error" class="alert alert-error" style="display: none;"></div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Numero de parte</th>
+                    <th>Serie</th>
+                    <th>Modelo</th>
+                    <th>Descripcion</th>
+                    <th>Cantidad</th>
+                    <th>Precio unitario</th>
+                    <th>Total concepto</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="conceptos-table-body">
+                {% for concepto in documento.conceptos.all %}
+                    <tr data-concepto-id="{{ concepto.pk }}">
+                        <td class="js-orden">{{ concepto.orden }}</td>
+                        <td>{{ concepto.numero_parte }}</td>
+                        <td>{{ concepto.serie }}</td>
+                        <td>{{ concepto.modelo }}</td>
+                        <td>{{ concepto.descripcion }}</td>
+                        <td>{{ concepto.cantidad }}</td>
+                        <td>{{ concepto.precio_unitario }}</td>
+                        <td>{{ concepto.total_concepto }}</td>
+                        <td>
+                            <div class="table-actions">
+                                {% if documento.status != "cancelado" and perms.conceptos.change_documentoconceptos %}
+                                    <form method="post" action="{% url 'conceptos:concepto_subir' documento.pk concepto.pk %}">
+                                        {% csrf_token %}
+                                        <button
+                                            class="btn btn-secondary js-mover-concepto"
+                                            type="submit"
+                                            data-action="subir"
+                                            data-url="{% url 'conceptos:concepto_subir' documento.pk concepto.pk %}"
+                                            {% if forloop.first %}disabled{% endif %}
+                                        >↑ Subir</button>
+                                    </form>
+                                    <form method="post" action="{% url 'conceptos:concepto_bajar' documento.pk concepto.pk %}">
+                                        {% csrf_token %}
+                                        <button
+                                            class="btn btn-secondary js-mover-concepto"
+                                            type="submit"
+                                            data-action="bajar"
+                                            data-url="{% url 'conceptos:concepto_bajar' documento.pk concepto.pk %}"
+                                            {% if forloop.last %}disabled{% endif %}
+                                        >↓ Bajar</button>
+                                    </form>
+                                {% endif %}
+                                {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
+                                    <a class="btn btn-secondary" href="{% url 'conceptos:concepto_update' documento.pk concepto.pk %}">Editar</a>
+                                {% endif %}
+                                {% if documento.es_borrador and perms.conceptos.delete_documentoconceptos %}
+                                    <form method="post" action="{% url 'conceptos:concepto_delete' documento.pk concepto.pk %}">
+                                        {% csrf_token %}
+                                        <button class="btn btn-danger-light" type="submit">Quitar</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9">No hay conceptos.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    (function ($) {
+        function actualizarControles() {
+            var filas = $('#conceptos-table-body tr[data-concepto-id]');
+            filas.each(function (index) {
+                var fila = $(this);
+                fila.find('.js-orden').text(index + 1);
+                fila.find('.js-mover-concepto[data-action="subir"]').prop('disabled', index === 0);
+                fila.find('.js-mover-concepto[data-action="bajar"]').prop('disabled', index === filas.length - 1);
+            });
+        }
+
+        function mostrarError(mensaje) {
+            $('#conceptos-ajax-error').text(mensaje).show();
+        }
+
+        $(document).on('click', '.js-mover-concepto', function (event) {
+            if (!window.jQuery) {
+                return;
+            }
+            event.preventDefault();
+            var boton = $(this);
+            if (boton.prop('disabled')) {
+                return;
+            }
+            var form = boton.closest('form');
+            var fila = boton.closest('tr');
+            var accion = boton.data('action');
+            var botones = $('.js-mover-concepto');
+            $('#conceptos-ajax-error').hide().text('');
+            botones.prop('disabled', true);
+
+            $.ajax({
+                url: boton.data('url'),
+                type: 'POST',
+                data: form.serialize(),
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                success: function (respuesta) {
+                    if (!respuesta.ok) {
+                        mostrarError(respuesta.error || 'No se pudo actualizar el orden.');
+                        return;
+                    }
+                    if (accion === 'subir') {
+                        fila.prev('tr[data-concepto-id]').before(fila);
+                    } else {
+                        fila.next('tr[data-concepto-id]').after(fila);
+                    }
+                },
+                error: function (xhr) {
+                    var mensaje = 'No se pudo actualizar el orden.';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        mensaje = xhr.responseJSON.error;
+                    }
+                    mostrarError(mensaje);
+                },
+                complete: function () {
+                    actualizarControles();
+                }
+            });
+        });
+    })(jQuery);
+</script>
+{% endblock %}
