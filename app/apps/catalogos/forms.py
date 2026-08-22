@@ -6,13 +6,13 @@ from apps.catalogos.models import NumeroParte
 
 
 class CSVUploadForm(forms.Form):
-    archivo = forms.FileField(label='Archivo CSV')
+    archivo = forms.FileField(label='Archivo CSV o XLSX')
 
     def clean_archivo(self):
         archivo = self.cleaned_data['archivo']
         extension = Path(archivo.name).suffix.lower()
-        if extension != '.csv':
-            raise forms.ValidationError('Solo se permiten archivos .csv.')
+        if extension not in {'.csv', '.xlsx'}:
+            raise forms.ValidationError('Solo se permiten archivos .csv o .xlsx.')
         return archivo
 
 

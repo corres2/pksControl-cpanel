@@ -19,3 +19,10 @@ pksControl-cpanel/
 ├── requirements.txt        Dependencias de producción
 ├── .env.example            Plantilla de configuración
 └── README.md               Guía rápida
+
+## Importación de números de parte
+
+La librería `NumeroParte` acepta archivos CSV o XLSX con cuatro columnas por posición:
+`numero_parte`, `modelo`, `descripcion` y `fraccion`. El flujo genera un preview,
+valida las filas y solo guarda al confirmar; los registros existentes se actualizan
+por `numero_parte` sin cambiar su estado `activo`.

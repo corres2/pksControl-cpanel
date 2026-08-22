@@ -71,6 +71,20 @@ def _csv(contenido):
     return archivo
 
 
+def _xlsx(filas, nombre='catalogo.xlsx'):
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    sheet = workbook.active
+    for fila in filas:
+        sheet.append(fila)
+    archivo = BytesIO()
+    workbook.save(archivo)
+    archivo.seek(0)
+    archivo.name = nombre
+    return archivo
+
+
 def _user(con_permiso=True, superusuario=False, permisos=None):
     permisos = permisos or set()
 
@@ -197,6 +211,41 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
 
         self.assertEqual(resultado['filas_validas'], MAX_FILAS_NUMEROS_PARTE)
         self.assertIn('limite', resultado['errores'][0]['error'])
+
+    def test_importa_xlsx_por_posicion_y_omite_encabezado(self):
+        archivo = _xlsx([
+            ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
+            ['XLSX-001', 'MOD-X', 'Descripcion XLSX', '1234.56.78'],
+        ])
+
+        with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
+            manager.filter.return_value.values_list.return_value = []
+            manager.update_or_create.return_value = (SimpleNamespace(), True)
+            resultado = importar_numeros_parte_csv(archivo)
+
+        self.assertEqual(resultado['procesadas'], 1)
+        self.assertEqual(resultado['creadas'], 1)
+        manager.update_or_create.assert_called_once_with(
+            numero_parte='XLSX-001',
+            defaults={
+                'modelo': 'MOD-X',
+                'descripcion': 'Descripcion XLSX',
+                'fraccion': '1234.56.78',
+            },
+        )
+
+    def test_analiza_xlsx_sin_guardar_y_detecta_error(self):
+        archivo = _xlsx([
+            ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
+            ['', 'MOD-X', 'Descripcion XLSX', ''],
+        ])
+
+        with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
+            resultado = analizar_numeros_parte_csv(archivo)
+
+        self.assertEqual(resultado['filas_validas'], 0)
+        self.assertIn('numero_parte', resultado['errores'][0]['error'])
+        manager.update_or_create.assert_not_called()
 
 
 class ImportarClavesSATCSVTests(SimpleTestCase):

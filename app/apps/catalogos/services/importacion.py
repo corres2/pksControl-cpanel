@@ -30,7 +30,7 @@ def analizar_numeros_parte_csv(archivo, limite=MAX_FILAS_NUMEROS_PARTE):
     numeros_en_archivo = set()
     limite_excedido = False
 
-    for fila_numero, fila in _leer_csv(archivo):
+    for fila_numero, fila in _leer_archivo_numeros_parte(archivo):
         valores = _normalizar_fila(fila, 4)
         numero_parte, modelo, descripcion, fraccion = valores
 
@@ -167,6 +167,31 @@ def _leer_csv(archivo):
     lector = csv.reader(StringIO(texto))
     for indice, fila in enumerate(lector, start=1):
         yield indice, fila
+
+
+def _leer_archivo_numeros_parte(archivo):
+    extension = getattr(archivo, 'name', '').lower()
+    if extension.endswith('.csv'):
+        yield from _leer_csv(archivo)
+        return
+    if extension.endswith('.xlsx'):
+        yield from _leer_xlsx(archivo)
+        return
+    raise ValueError('Formato no soportado. Usa CSV o XLSX.')
+
+
+def _leer_xlsx(archivo):
+    from openpyxl import load_workbook
+
+    archivo.seek(0)
+    workbook = load_workbook(archivo, read_only=True, data_only=True)
+    try:
+        for indice, fila in enumerate(
+            workbook.active.iter_rows(values_only=True), start=1
+        ):
+            yield indice, [valor if valor is not None else '' for valor in fila[:4]]
+    finally:
+        workbook.close()
 
 
 def _decodificar(contenido):

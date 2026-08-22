@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Importar numeros de parte</h1>
-        <p class="muted">Carga el catalogo interno desde un archivo CSV.</p>
+        <p class="muted">Carga el catalogo interno desde un archivo CSV o XLSX.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Volver al listado</a>
@@ -42,12 +42,12 @@
 </div>
 
 <div class="card">
-    <h2>Archivo CSV</h2>
+    <h2>Archivo CSV o XLSX</h2>
     <form class="form-grid" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ form.as_p }}
         <div class="page-actions">
-            <button class="btn btn-primary" type="submit">Importar CSV</button>
+            <button class="btn btn-primary" type="submit">Generar preview</button>
         </div>
     </form>
 </div>
