@@ -150,6 +150,18 @@ Patrones por interacción:
 
 Evitar JavaScript duplicado por módulo. Preferir helpers y scripts reutilizables, y conectar botones, formularios y bloques mediante atributos `data-*`. Cada implementación debe conservar fallback sin JavaScript, foco accesible y mensajes equivalentes a la navegación tradicional.
 
+### Uso progresivo de SweetAlert2
+
+SweetAlert2 se reserva para confirmaciones destructivas o importantes y para éxito/error de acciones AJAX; no debe usarse para validaciones simples de campo ni convertir cada mensaje en una ventana modal. Debe cargarse una sola vez por ámbito, preferentemente desde el asset global si existe. Mientras no haya infraestructura local, el listado de Números de parte usa el CDN de jsDelivr de forma explícita y localizada.
+
+La integración no reemplaza la seguridad ni la lógica del servidor. Las vistas siguen validando método, CSRF, permisos y estado, y el formulario POST normal sigue funcionando sin JavaScript. Si SweetAlert2 no carga, se usa `confirm()` para confirmar y un mensaje inline o `alert()` como respaldo; un error AJAX debe seguir siendo visible y permitir reintentar.
+
+### Uso progresivo de SweetAlert2
+
+SweetAlert2 se reserva para confirmaciones destructivas o importantes y para éxito/error de acciones AJAX; no debe usarse para validaciones simples de campo ni convertir cada mensaje en una ventana modal. Debe cargarse una sola vez por ámbito, preferentemente desde el asset global si existe. Mientras no haya infraestructura local, el listado de Números de parte usa el CDN de jsDelivr de forma explícita y localizada.
+
+La integración no reemplaza la seguridad ni la lógica del servidor. Las vistas siguen validando método, CSRF, permisos y estado, y el formulario POST normal sigue funcionando sin JavaScript. Si SweetAlert2 no carga, se usa `confirm()` para confirmar y un mensaje inline o `alert()` como respaldo; un error AJAX debe seguir siendo visible y permitir reintentar.
+
 ### Patrón real: filtros de Números de parte
 
 El listado de Números de parte conserva un formulario `GET` como fallback. Con JavaScript activo, el submit consulta la misma vista con la cabecera `X-Requested-With: XMLHttpRequest`; la vista devuelve el partial HTML de resultados y el navegador reemplaza únicamente el bloque `data-ajax-resultados`, sin convertir la página completa en una SPA.

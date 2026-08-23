@@ -72,6 +72,8 @@
     {% include "catalogos/partials/numeros_parte_resultados.html" %}
 </div>
 
+<!-- CDN temporal para la mejora progresiva; confirm() y mensajes inline son el fallback. -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 (function () {
     const form = document.querySelector('[data-filtros-numeros-parte]');
@@ -91,6 +93,25 @@
 
     function mostrarError(mensaje) {
         resultados.innerHTML = '<div class="alert alert-error" role="alert">' + mensaje + '</div>';
+    }
+
+    function mostrarMensajeFila(fila, mensaje, tipo) {
+        if (!fila) return;
+        const acciones = fila.querySelector('.table-actions');
+        if (!acciones) return;
+        const existente = acciones.querySelector('[data-estado-mensaje]');
+        if (existente) existente.remove();
+        const aviso = document.createElement('div');
+        aviso.className = 'alert ' + (tipo === 'error' ? 'alert-error' : 'alert-success');
+        aviso.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+        aviso.dataset.estadoMensaje = 'true';
+        aviso.textContent = mensaje;
+        acciones.appendChild(aviso);
+    }
+
+    function mostrarSweetAlert(opciones, fallback) {
+        if (window.Swal) return window.Swal.fire(opciones);
+        return Promise.resolve({isConfirmed: fallback()});
     }
 
     async function cargarResultados(url, actualizarHistorial) {
@@ -150,15 +171,38 @@
         const boton = formEstado.querySelector('[data-estado-boton]');
         const fila = formEstado.closest('tr');
         const inactivar = boton && boton.textContent.trim() === 'Inactivar';
-        if (!boton || !window.confirm((inactivar ? '¿Inactivar' : '¿Activar') + ' este número de parte?')) return;
+        if (!boton) return;
+        const confirmacion = await mostrarSweetAlert({
+            title: (inactivar ? '¿Inactivar' : '¿Activar') + ' número de parte?',
+            text: 'Puedes cambiar este estado nuevamente después.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: inactivar ? 'Sí, inactivar' : 'Sí, activar',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true
+        }, function () {
+            return window.confirm((inactivar ? '¿Inactivar' : '¿Activar') + ' este número de parte?');
+        });
+        if (!confirmacion.isConfirmed) return;
 
         formEstado.dataset.procesando = 'true';
+        let loadingVisible = false;
         const textoOriginal = boton.textContent;
         boton.disabled = true;
         boton.textContent = 'Procesando...';
         if (fila) fila.setAttribute('aria-busy', 'true');
         const existente = formEstado.parentElement.querySelector('[data-estado-error]');
         if (existente) existente.remove();
+        if (window.Swal) {
+            loadingVisible = true;
+            window.Swal.fire({
+                title: 'Procesando...',
+                text: 'Actualizando el estado del número de parte.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: function () { window.Swal.showLoading(); }
+            });
+        }
 
         try {
             const respuesta = await fetch(formEstado.action, {
@@ -186,6 +230,19 @@
             boton.classList.toggle('btn-danger-light', datos.activo);
             boton.classList.toggle('btn-secondary', !datos.activo);
             formEstado.action = datos.activo ? formEstado.dataset.inactivarUrl : formEstado.dataset.activarUrl;
+            if (window.Swal) {
+                window.Swal.close();
+                loadingVisible = false;
+                window.Swal.fire({
+                    icon: 'success',
+                    title: 'Estado actualizado',
+                    text: 'El número de parte ahora está ' + datos.estado.toLowerCase() + '.',
+                    timer: 2200,
+                    showConfirmButton: false
+                });
+            } else {
+                mostrarMensajeFila(fila, 'Estado actualizado: ' + datos.estado + '.', 'success');
+            }
         } catch (error) {
             boton.textContent = textoOriginal;
             const mensaje = document.createElement('div');
@@ -194,7 +251,17 @@
             mensaje.dataset.estadoError = 'true';
             mensaje.textContent = error.message || 'No se pudo actualizar el estado. Intenta nuevamente.';
             formEstado.parentElement.appendChild(mensaje);
+            if (window.Swal) {
+                window.Swal.close();
+                loadingVisible = false;
+                window.Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo actualizar',
+                    text: mensaje.textContent
+                });
+            }
         } finally {
+            if (window.Swal && loadingVisible && window.Swal.isVisible()) window.Swal.close();
             formEstado.dataset.procesando = 'false';
             boton.disabled = false;
             if (fila) fila.removeAttribute('aria-busy');
