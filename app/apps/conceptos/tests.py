@@ -17,6 +17,7 @@ from apps.conceptos.models import (
     PatronSerie,
 )
 from apps.conceptos.services import analizar_historial_para_propuestas
+from apps.conceptos.views import _buscar_sugerencias_historial
 
 
 class ConceptosModelTests(TestCase):
@@ -310,6 +311,19 @@ class PatronSerieAprendizajeTests(TestCase):
             ).exists()
         )
 
+    def test_colision_de_prefijo_bajo_umbral_queda_en_conflicto(self):
+        for serie in ('AB-001', 'AB-002'):
+            self._evidencia(serie, numero_parte='NP-A')
+        for serie in ('AB-101', 'AB-102'):
+            self._evidencia(serie, numero_parte='NP-B')
+
+        analizar_historial_para_propuestas()
+
+        patrones = PatronSerie.objects.order_by('numero_parte')
+        self.assertEqual(patrones.count(), 2)
+        self.assertTrue(all(patron.estado == PatronSerie.ESTADO_CONFLICTO for patron in patrones))
+        self.assertTrue(all(not patron.activo for patron in patrones))
+
     def test_rutas_operativas_de_propuestas_historicas_retiradas(self):
         with self.assertRaises(NoReverseMatch):
             reverse('conceptos:propuestas_patron_list')
@@ -382,6 +396,45 @@ class ConceptosViewsTests(TestCase):
             buffer.read(),
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
+
+    def _crear_historial_sugerencia(self, documento, serie, usar_para_biblioteca=True):
+        return HistorialCoincidencia.objects.create(
+            documento=documento,
+            serie=serie,
+            numero_parte='NP-HIST',
+            modelo='MOD-HIST',
+            descripcion='Descripcion historial',
+            usar_para_biblioteca=usar_para_biblioteca,
+        )
+
+    def _buscar_historial(self, serie):
+        return _buscar_sugerencias_historial({'numero_parte': '', 'serie': serie})
+
+    def test_sugerencias_no_usan_historial_fuera_de_biblioteca(self):
+        documento = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
+        historial = self._crear_historial_sugerencia(
+            documento, 'SER-FUERA', usar_para_biblioteca=False
+        )
+
+        sugerencias = self._buscar_historial('SER-FUERA')
+
+        self.assertFalse(any(item['id'] == historial.pk for item in sugerencias))
+
+    def test_sugerencias_no_usan_historial_de_documento_borrador(self):
+        documento = self._crear_documento(status=DocumentoConceptos.STATUS_BORRADOR)
+        historial = self._crear_historial_sugerencia(documento, 'SER-BORRADOR')
+
+        sugerencias = self._buscar_historial('SER-BORRADOR')
+
+        self.assertFalse(any(item['id'] == historial.pk for item in sugerencias))
+
+    def test_sugerencias_si_usan_historial_confirmado_de_biblioteca(self):
+        documento = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
+        historial = self._crear_historial_sugerencia(documento, 'SER-CONFIRMADO')
+
+        sugerencias = self._buscar_historial('SER-CONFIRMADO')
+
+        self.assertEqual([item['id'] for item in sugerencias], [historial.pk])
 
     def test_listado_requiere_login(self):
         response = self.client.get(reverse('conceptos:documentos_list'))

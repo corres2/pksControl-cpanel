@@ -495,7 +495,12 @@ def _buscar_sugerencias_historial(datos):
     if not numero_parte and not serie:
         return []
 
-    queryset = HistorialCoincidencia.objects.exclude(
+    queryset = HistorialCoincidencia.objects.filter(
+        usar_para_biblioteca=True,
+    ).filter(
+        Q(documento__isnull=True)
+        | Q(documento__status=DocumentoConceptos.STATUS_CONFIRMADO)
+    ).exclude(
         numero_parte='',
         serie='',
         descripcion='',

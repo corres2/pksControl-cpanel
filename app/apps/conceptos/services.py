@@ -25,15 +25,42 @@ def analizar_historial_para_propuestas(min_series=MIN_SERIES_UNICAS, min_prefix_
         firma = _firma_evidencia(evidencia)
         grupos[_firma_key(firma)].append(evidencia)
 
+    colisiones_por_base = defaultdict(set)
+    for firma_key, elementos in grupos.items():
+        prefijo = _prefijo_comun(
+            sorted({normalizar_texto(item.serie) for item in elementos if item.serie})
+        )
+        if len(prefijo) >= min_prefix_len:
+            colisiones_por_base[prefijo[:min_prefix_len]].add(firma_key)
+
     patrones = []
     for firma_key, elementos in grupos.items():
         firma = _firma_desde_key(firma_key)
-        patron = _crear_o_actualizar_patron(firma, elementos, min_series, min_prefix_len)
+        prefijo = _prefijo_comun(
+            sorted({normalizar_texto(item.serie) for item in elementos if item.serie})
+        )
+        colision_prefijo = (
+            len(prefijo) >= min_prefix_len
+            and len(colisiones_por_base[prefijo[:min_prefix_len]]) > 1
+        )
+        patron = _crear_o_actualizar_patron(
+            firma,
+            elementos,
+            min_series,
+            min_prefix_len,
+            colision_prefijo=colision_prefijo,
+        )
         if patron:
             patrones.append(patron)
     return patrones
 
-def _crear_o_actualizar_patron(firma, evidencias, min_series, min_prefix_len):
+def _crear_o_actualizar_patron(
+    firma,
+    evidencias,
+    min_series,
+    min_prefix_len,
+    colision_prefijo=False,
+):
     series_unicas = sorted({normalizar_texto(evidencia.serie) for evidencia in evidencias if evidencia.serie})
     numero_partes = sorted({normalizar_texto(evidencia.numero_parte) for evidencia in evidencias if evidencia.numero_parte})
     modelo = firma['modelo']
@@ -50,6 +77,9 @@ def _crear_o_actualizar_patron(firma, evidencias, min_series, min_prefix_len):
         estado = PatronSerie.ESTADO_CONFLICTO
     elif sample_size >= min_series and len(numero_partes) > 1:
         motivo = 'misma serie o prefijo asociado a varios numero_parte'
+        estado = PatronSerie.ESTADO_CONFLICTO
+    elif colision_prefijo:
+        motivo = 'colision de prefijo con datos distintos'
         estado = PatronSerie.ESTADO_CONFLICTO
     elif sample_size >= min_series and _prefijo_tiene_conflicto(prefix, numero_parte):
         motivo = 'mismo prefijo asociado a varios numero_parte'
