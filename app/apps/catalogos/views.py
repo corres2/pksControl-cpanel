@@ -269,7 +269,11 @@ def numeros_parte_list(request):
     filtros.pop('page', None)
     return render(
         request,
-        'catalogos/numeros_parte_list.html',
+        (
+            'catalogos/partials/numeros_parte_resultados.html'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            else 'catalogos/numeros_parte_list.html'
+        ),
         {
             'page_obj': page_obj,
             'q': q,

@@ -724,6 +724,32 @@ class CatalogosViewsTests(SimpleTestCase):
         self.assertIn('Historial de cargas', contenido)
         self.assertIn('Cerrar sesion', contenido)
 
+    def test_listado_numeros_parte_ajax_devuelve_solo_resultados(self):
+        request = self.factory.get(
+            reverse('catalogos:numeros_parte_list'),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        request.user = _user(True)
+        item = SimpleNamespace(
+            pk=1,
+            numero_parte='ABC123',
+            modelo='MOD-2026',
+            descripcion='Sensor de temperatura',
+            fraccion='9026.10.01',
+            activo=True,
+            updated_at=None,
+        )
+        queryset = FakeQuerySet([item])
+
+        with patch('apps.catalogos.views.NumeroParte.objects', queryset):
+            response = numeros_parte_list(request)
+
+        contenido = response.content.decode('utf-8')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('ABC123', contenido)
+        self.assertIn('data-table', contenido)
+        self.assertNotIn('<!doctype html>', contenido)
+
     def test_listado_sat_responde_con_usuario_autenticado(self):
         request = self.factory.get(reverse('catalogos:sat_list'))
         request.user = _user(True)

@@ -10,7 +10,7 @@
     </div>
     <div class="page-actions">
         {% if perms.catalogos.view_numeroparte %}
-            <a class="btn btn-secondary" href="{% url 'catalogos:exportar_numeros_parte_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">
+            <a class="btn btn-secondary" data-filtros-link href="{% url 'catalogos:exportar_numeros_parte_csv' %}{% if querystring %}?{{ querystring }}{% endif %}">
                 Exportar CSV
             </a>
         {% endif %}
@@ -28,7 +28,7 @@
 </div>
 
 <div class="card">
-    <form class="form-grid" method="get">
+    <form class="form-grid" method="get" data-filtros-numeros-parte>
         <div class="card-grid">
             <div class="form-field">
                 <label for="q">Buscar</label>
@@ -68,109 +68,84 @@
     </div>
 {% endif %}
 
-<div class="card">
-    <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Número de parte</th>
-                    <th>Modelo</th>
-                    <th>Descripción</th>
-                    <th>Fracción</th>
-                    <th>Estado</th>
-                    <th>Actualizado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in page_obj %}
-                    <tr>
-                        <td>
-                            {% if perms.catalogos.view_numeroparte %}
-                                <a href="{% url 'catalogos:numero_parte_detail' item.pk %}">
-                                    {{ item.numero_parte }}
-                                </a>
-                            {% else %}
-                                {{ item.numero_parte }}
-                            {% endif %}
-                        </td>
-                        <td>{{ item.modelo|default:"" }}</td>
-                        <td>{{ item.descripcion }}</td>
-                        <td>{{ item.fraccion|default:"" }}</td>
-                        <td>
-                            {% if item.activo %}
-                                <span class="badge badge-ok">Activo</span>
-                            {% else %}
-                                <span class="badge badge-warning">Inactivo</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ item.updated_at|date:"Y-m-d H:i" }}</td>
-                        <td>
-                            <div class="table-actions">
-                                {% if perms.catalogos.change_numeroparte %}
-                                    <a class="btn btn-secondary" href="{% url 'catalogos:numero_parte_update' item.pk %}">
-                                        Editar
-                                    </a>
-                                    {% if item.activo %}
-                                        <form method="post" action="{% url 'catalogos:numero_parte_inactivar' item.pk %}">
-                                            {% csrf_token %}
-                                            <button class="btn btn-danger-light" type="submit">Inactivar</button>
-                                        </form>
-                                    {% else %}
-                                        <form method="post" action="{% url 'catalogos:numero_parte_activar' item.pk %}">
-                                            {% csrf_token %}
-                                            <button class="btn btn-secondary" type="submit">Activar</button>
-                                        </form>
-                                    {% endif %}
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="7">
-                            <div class="alert" role="status">
-                                {% if total_numero_partes %}
-                                    <strong>No encontramos números de parte con los filtros aplicados.</strong>
-                                    <p class="muted">Prueba con otros criterios o limpia los filtros para consultar el catálogo.</p>
-                                {% else %}
-                                    <strong>Aún no hay números de parte registrados.</strong>
-                                    <p class="muted">Puedes crear el primer registro o importar un archivo CSV/XLSX.</p>
-                                {% endif %}
-                                <div class="page-actions">
-                                    {% if q or modelo or fraccion or estado != "activos" %}
-                                        <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Limpiar filtros</a>
-                                    {% endif %}
-                                    {% if perms.catalogos.add_numeroparte %}
-                                        <a class="btn btn-primary" href="{% url 'catalogos:numero_parte_create' %}">Nuevo número de parte</a>
-                                    {% endif %}
-                                    {% if perms.catalogos.puede_importar_numeroparte %}
-                                        <a class="btn btn-secondary" href="{% url 'catalogos:importar_numeros_parte' %}">Importar CSV/XLSX</a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="pagination">
-        <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_previous %}
-            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
-        {% endif %}
-        {% for numero in page_obj.paginator.page_range %}
-            {% if numero == page_obj.number %}
-                <span class="page-current">{{ numero }}</span>
-            {% elif numero >= page_obj.number|add:"-2" and numero <= page_obj.number|add:"2" %}
-                <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ numero }}">{{ numero }}</a>
-            {% endif %}
-        {% endfor %}
-        {% if page_obj.has_next %}
-            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
-        {% endif %}
-    </div>
+<div id="numeros-parte-resultados" data-ajax-resultados aria-live="polite">
+    {% include "catalogos/partials/numeros_parte_resultados.html" %}
 </div>
+
+<script>
+(function () {
+    const form = document.querySelector('[data-filtros-numeros-parte]');
+    const resultados = document.querySelector('[data-ajax-resultados]');
+    if (!form || !resultados || !window.fetch) return;
+
+    let requestActive = false;
+    const buscar = form.querySelector('button[type="submit"]');
+
+    function sincronizarEnlaces(url) {
+        document.querySelectorAll('[data-filtros-link]').forEach(function (enlace) {
+            const destino = new URL(enlace.href, window.location.href);
+            destino.search = url.search;
+            enlace.href = destino.toString();
+        });
+    }
+
+    function mostrarError(mensaje) {
+        resultados.innerHTML = '<div class="alert alert-error" role="alert">' + mensaje + '</div>';
+    }
+
+    async function cargarResultados(url, actualizarHistorial) {
+        if (requestActive) return;
+        requestActive = true;
+        resultados.setAttribute('aria-busy', 'true');
+        resultados.insertAdjacentHTML('afterbegin', '<div class="alert" role="status" data-ajax-loading>Actualizando resultados...</div>');
+        if (buscar) {
+            buscar.disabled = true;
+            buscar.dataset.textoOriginal = buscar.textContent;
+            buscar.textContent = 'Buscando...';
+        }
+
+        try {
+            const respuesta = await fetch(url.toString(), {
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html'}
+            });
+            const tipo = respuesta.headers.get('content-type') || '';
+            if (!respuesta.ok || !tipo.includes('text/html') || respuesta.redirected) {
+                throw new Error('La sesión puede haber expirado. Recarga la página e inicia sesión nuevamente.');
+            }
+            resultados.innerHTML = await respuesta.text();
+            if (actualizarHistorial) window.history.pushState({}, '', url.toString());
+            sincronizarEnlaces(url);
+        } catch (error) {
+            mostrarError(error.message || 'No se pudieron actualizar los resultados. Intenta nuevamente.');
+        } finally {
+            resultados.removeAttribute('aria-busy');
+            requestActive = false;
+            if (buscar) {
+                buscar.disabled = false;
+                buscar.textContent = buscar.dataset.textoOriginal || 'Buscar';
+            }
+        }
+    }
+
+    form.addEventListener('submit', function (evento) {
+        evento.preventDefault();
+        const url = new URL(form.action || window.location.href, window.location.href);
+        url.search = new URLSearchParams(new FormData(form)).toString();
+        cargarResultados(url, true);
+    });
+
+    resultados.addEventListener('click', function (evento) {
+        const enlace = evento.target.closest('a[href]');
+        if (!enlace || !enlace.closest('[data-ajax-resultados]')) return;
+        const url = new URL(enlace.href, window.location.href);
+        if (url.origin !== window.location.origin) return;
+        evento.preventDefault();
+        cargarResultados(url, true);
+    });
+
+    window.addEventListener('popstate', function () {
+        cargarResultados(new URL(window.location.href), false);
+    });
+}());
+</script>
 {% endblock %}
