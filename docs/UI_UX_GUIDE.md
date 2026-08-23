@@ -128,7 +128,29 @@ Esto evita doble click y doble envío. Mostrar “Procesando archivo, espera un 
 
 Si ocurre un error, restaurar botones y textos originales, retirar el estado de espera y mostrar un mensaje accionable. La solución debe funcionar sin JavaScript: el servidor sigue validando y el formulario sigue siendo usable, aunque no haya indicador dinámico.
 
-## 11. Accesibilidad y navegación
+## 11. AJAX progresivo
+
+La regla base es HTML funcional primero y AJAX como mejora progresiva. Toda acción debe seguir funcionando sin JavaScript cuando sea razonable, mediante una URL y un formulario navegables. AJAX no debe duplicar la lógica de negocio: el backend siempre valida permisos, datos y estados, incluso cuando la petición llega por `fetch`.
+
+Las respuestas deben ser visibles y accionables. No ocultar fallos silenciosamente; ante errores, mostrar el mensaje en el bloque afectado y restaurar botones y controles. Si la sesión expiró, indicar que es necesario recargar la página o iniciar sesión. Usar loading local, deshabilitar el control durante la petición y prevenir doble click o doble submit.
+
+Formato recomendado de respuestas:
+
+- Usar HTML parcial cuando se reemplaza un bloque de listado, filtros, fila, preview o formulario; el bloque debe tener un `id` estable.
+- Usar JSON solo para acciones pequeñas o autocompletados, con una estructura clara de éxito, datos y error.
+- Mantener una respuesta HTML completa como fallback cuando sea razonable.
+
+Patrones por interacción:
+
+- **Filtros AJAX:** enviar los mismos parámetros GET, actualizar el bloque de resultados y conservar una URL navegable mediante `history.pushState` cuando aplique. El botón “Buscar” y la paginación deben seguir funcionando sin AJAX.
+- **Activar/inactivar por fila:** enviar el formulario POST con CSRF, validar permisos en servidor, actualizar solo la fila o mostrar el resultado y conservar la acción alternativa. No simular el cambio antes de recibir confirmación.
+- **Previews e importaciones:** mantener “Generar preview” como submit normal; AJAX puede reemplazar únicamente el bloque de preview, mostrar loading local y enfocar el resumen. La confirmación debe seguir siendo explícita y validada en servidor.
+- **Formularios con validación parcial:** devolver HTML parcial con errores junto a los campos; nunca considerar válido un formulario solo porque una petición AJAX terminó sin error de transporte.
+- **Autocompletados:** usar JSON para sugerencias pequeñas, con debounce, cancelación de peticiones obsoletas y mensajes claros cuando no haya resultados. La selección no debe reemplazar datos sin confirmación.
+
+Evitar JavaScript duplicado por módulo. Preferir helpers y scripts reutilizables, y conectar botones, formularios y bloques mediante atributos `data-*`. Cada implementación debe conservar fallback sin JavaScript, foco accesible y mensajes equivalentes a la navegación tradicional.
+
+## 12. Accesibilidad y navegación
 
 Los títulos deben seguir una jerarquía (`h1` y `h2`), los botones deben describir su acción y los errores deben conservar foco o anunciarse de forma accesible. Tras generar un preview o detectar errores, mover el foco al encabezado de esa sección sin impedir que la persona vuelva al formulario.
 
@@ -136,7 +158,7 @@ Después de generar un preview, llevar el foco visual al resumen y, después de 
 
 En cambios futuros se recomienda usar un ancla o `id` estable para `preview`, `errores` y `resultado-importacion`, además de `role="alert"` para mensajes dinámicos. Las tablas deben conservar encabezados, contraste y lectura horizontal en pantallas pequeñas.
 
-## 12. Checklist antes de publicar una vista
+## 13. Checklist antes de publicar una vista
 
 - ¿El título describe la tarea y los textos usan acentos?
 - ¿La acción primaria es única, visible y específica?
@@ -148,6 +170,9 @@ En cambios futuros se recomienda usar un ancla o `id` estable para `preview`, `e
 - ¿La navegación posterior permite continuar sin volver atrás manualmente?
 - ¿Los submits largos muestran loading, deshabilitan botones y evitan doble envío?
 - ¿Los errores aparecen después de interacción/submit y restauran controles si fallan?
+- ¿La mejora AJAX conserva fallback HTML, URL navegable y validación en servidor?
+- ¿Las respuestas AJAX reemplazan bloques claros o usan JSON solo cuando corresponde?
+- ¿Se evita JavaScript duplicado y se previenen peticiones o envíos duplicados?
 - ¿Se validó teclado, foco, lector de pantalla y vista móvil?
 
 ## Fases propuestas
