@@ -1,7 +1,10 @@
 from collections import defaultdict
 from decimal import Decimal
 
+from django.db.models import Q
+
 from apps.conceptos.models import (
+    DocumentoConceptos,
     HistorialCoincidencia,
     PatronSerie,
     normalizar_texto,
@@ -15,6 +18,9 @@ MIN_PREFIX_LEN = 3
 def analizar_historial_para_propuestas(min_series=MIN_SERIES_UNICAS, min_prefix_len=MIN_PREFIX_LEN):
     evidencias = HistorialCoincidencia.objects.filter(
         usar_para_biblioteca=True,
+    ).filter(
+        Q(documento__isnull=True)
+        | Q(documento__status=DocumentoConceptos.STATUS_CONFIRMADO),
     ).exclude(
         serie='',
     ).exclude(

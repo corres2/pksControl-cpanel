@@ -16,6 +16,7 @@ from apps.conceptos.importacion import (
     analizar_archivo_conceptos,
     confirmar_importacion_conceptos,
 )
+from apps.conceptos.services import analizar_historial_para_propuestas
 from apps.conceptos.models import (
     Concepto,
     DocumentoConceptos,
@@ -186,12 +187,10 @@ def conceptos_importar_confirmar(request, pk):
         messages.error(request, 'No hay filas válidas para importar.')
         return redirect('conceptos:conceptos_importar', pk=documento.pk)
 
-    usar_para_biblioteca = request.POST.get('usar_para_biblioteca') == '1'
     creados = confirmar_importacion_conceptos(
         documento,
         preview['filas'],
         usuario=request.user,
-        usar_para_biblioteca=usar_para_biblioteca,
     )
     del request.session[session_key]
     request.session.modified = True
@@ -679,7 +678,14 @@ def documento_confirmar(request, pk):
         documento.status = DocumentoConceptos.STATUS_CONFIRMADO
         documento.save(update_fields=['status', 'updated_at'])
         for concepto in documento.conceptos.all():
-            registrar_historial_concepto(concepto, usuario=request.user)
+            historial = registrar_historial_concepto(concepto, usuario=request.user)
+            if historial:
+                HistorialCoincidencia.objects.filter(pk=historial.pk).update(
+                    documento=documento,
+                    confirmado_por=request.user,
+                    usar_para_biblioteca=True,
+                )
+        analizar_historial_para_propuestas()
     messages.success(request, 'Factura confirmada correctamente.')
     return redirect('conceptos:documento_detail', pk=documento.pk)
 

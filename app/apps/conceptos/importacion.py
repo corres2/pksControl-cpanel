@@ -6,13 +6,7 @@ from decimal import Decimal, InvalidOperation
 from django.db.models import Q
 
 from apps.catalogos.models import NumeroParte
-from apps.conceptos.models import (
-    Concepto,
-    DocumentoConceptos,
-    HistorialCoincidencia,
-    PatronSerie,
-    construir_firma_concepto,
-)
+from apps.conceptos.models import Concepto, DocumentoConceptos, PatronSerie
 
 
 COLUMNAS_ESPERADAS = (
@@ -65,41 +59,9 @@ def confirmar_importacion_conceptos(
             precio_unitario=Decimal(datos['precio_unitario']),
             orden=orden_base + creados + 1,
         )
-        if usar_para_biblioteca:
-            _registrar_historial_importacion(concepto, fila, usuario)
         creados += 1
     documento.recalcular_total()
     return creados
-
-
-def _registrar_historial_importacion(concepto, fila, usuario=None):
-    firma_texto, firma_json = construir_firma_concepto(concepto)
-    HistorialCoincidencia.objects.get_or_create(
-        concepto=concepto,
-        defaults={
-            'documento': concepto.documento,
-            'serie': concepto.serie,
-            'numero_parte': concepto.numero_parte,
-            'modelo': concepto.modelo,
-            'descripcion': concepto.descripcion,
-            'firma_texto': firma_texto,
-            'firma_json': firma_json,
-            'regla_usada': 'importacion_confirmada',
-            'match_type': _match_type_importacion(fila),
-            'confirmado_por': usuario if getattr(usuario, 'is_authenticated', False) else None,
-            'confirmado_en_importacion': True,
-            'usar_para_biblioteca': True,
-        },
-    )
-
-
-def _match_type_importacion(fila):
-    return {
-        'ok_exacto': 'exacto',
-        'sugerido_historial': 'historial',
-        'sugerido_patron': 'patron',
-        'manual': 'manual',
-    }.get(fila.get('estado'), 'manual')
 
 
 def _leer_archivo(archivo):

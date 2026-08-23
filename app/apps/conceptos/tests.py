@@ -705,7 +705,7 @@ class ConceptosViewsTests(TestCase):
             response,
             'No se encontró número de parte activo; puedes capturar los datos manualmente.',
         )
-        self.assertContains(response, 'Manual')
+        self.assertContains(response, 'Lista / Válida')
         self.assertFalse(Concepto.objects.exists())
 
     def test_numero_parte_inactivo_no_se_usa_como_sugerencia_valida(self):
@@ -1450,6 +1450,7 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Preview')
         self.assertContains(response, 'Manual')
+        self.assertNotContains(response, 'Usar filas confirmadas para alimentar biblioteca')
         self.assertFalse(Concepto.objects.filter(documento=documento).exists())
 
     def test_importacion_xlsx_valido_genera_preview(self):
@@ -1713,8 +1714,7 @@ class ConceptosViewsTests(TestCase):
 
         self.assertEqual(Concepto.objects.filter(documento=documento).count(), 1)
         self.assertEqual(Concepto.objects.get(documento=documento).numero_parte, 'NP-1')
-        self.assertEqual(HistorialCoincidencia.objects.count(), 1)
-        self.assertEqual(HistorialCoincidencia.objects.get().numero_parte, 'NP-1')
+        self.assertFalse(HistorialCoincidencia.objects.exists())
 
     def test_confirmar_importacion_crea_solo_filas_validas_y_recalcula_total(self):
         documento = self._crear_documento()
@@ -1741,7 +1741,7 @@ class ConceptosViewsTests(TestCase):
         documento.refresh_from_db()
         self.assertEqual(documento.total, Decimal('10.000000'))
 
-    def test_importacion_con_opcion_activa_crea_historial(self):
+    def test_importacion_crea_conceptos_sin_historial_mientras_factura_sigue_borrador(self):
         documento = self._crear_documento()
         NumeroParte.objects.create(
             numero_parte='NP-EVID',
@@ -1767,15 +1767,9 @@ class ConceptosViewsTests(TestCase):
             {'usar_para_biblioteca': '1'},
         )
 
-        concepto = Concepto.objects.get(documento=documento)
-        historial = HistorialCoincidencia.objects.get(concepto=concepto)
-        self.assertEqual(historial.documento, documento)
-        self.assertEqual(historial.confirmado_por, self.user)
-        self.assertTrue(historial.confirmado_en_importacion)
-        self.assertTrue(historial.usar_para_biblioteca)
-        self.assertEqual(historial.regla_usada, 'importacion_confirmada')
-        self.assertEqual(historial.match_type, 'exacto')
-        self.assertEqual(historial.firma_json['numero_parte'], 'NP-EVID')
+        self.assertEqual(Concepto.objects.filter(documento=documento).count(), 1)
+        self.assertEqual(documento.status, DocumentoConceptos.STATUS_BORRADOR)
+        self.assertFalse(HistorialCoincidencia.objects.exists())
 
     def test_importacion_con_opcion_desactivada_no_crea_historial(self):
         documento = self._crear_documento()
@@ -1817,8 +1811,7 @@ class ConceptosViewsTests(TestCase):
         )
 
         self.assertEqual(Concepto.objects.filter(documento=documento).count(), 1)
-        self.assertEqual(HistorialCoincidencia.objects.count(), 1)
-        self.assertEqual(HistorialCoincidencia.objects.get().numero_parte, 'NP-OK')
+        self.assertFalse(HistorialCoincidencia.objects.exists())
 
     def test_reintento_confirmacion_importacion_no_duplica_historial(self):
         documento = self._crear_documento()
@@ -1835,11 +1828,11 @@ class ConceptosViewsTests(TestCase):
             },
         )
         url = reverse('conceptos:conceptos_importar_confirmar', kwargs={'pk': documento.pk})
-        self.client.post(url, {'usar_para_biblioteca': '1'})
-        self.client.post(url, {'usar_para_biblioteca': '1'})
+        self.client.post(url)
+        self.client.post(url)
 
         self.assertEqual(Concepto.objects.filter(documento=documento).count(), 1)
-        self.assertEqual(HistorialCoincidencia.objects.count(), 1)
+        self.assertFalse(HistorialCoincidencia.objects.exists())
 
     def test_subir_intercambia_orden_con_anterior(self):
         documento = self._crear_documento()
@@ -2251,6 +2244,70 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(historial.confirmado_por, self.user)
         self.assertEqual(historial.regla_usada, 'manual')
         self.assertEqual(historial.match_type, 'confirmado')
+        self.assertTrue(historial.usar_para_biblioteca)
+
+    def test_confirmar_factura_despues_de_importar_genera_historial_y_patron(self):
+        documento = self._crear_documento()
+        NumeroParte.objects.create(
+            numero_parte='NP-IMPORTADO',
+            modelo='MOD-IMPORTADO',
+            descripcion='Sensor importado',
+            fraccion='',
+            activo=True,
+        )
+        self._grant('change_documentoconceptos', 'puede_confirmar_documentoconceptos')
+        self._login()
+
+        self.client.post(
+            reverse('conceptos:conceptos_importar', kwargs={'pk': documento.pk}),
+            {
+                'archivo': self._csv_upload(
+                    'numero_parte,serie,modelo,descripcion,cantidad,precio_unitario\n'
+                    'NP-IMPORTADO,SER-001,,,1,0\n'
+                    'NP-IMPORTADO,SER-002,,,1,0\n'
+                    'NP-IMPORTADO,SER-003,,,1,0\n'
+                )
+            },
+        )
+        self.client.post(
+            reverse('conceptos:conceptos_importar_confirmar', kwargs={'pk': documento.pk})
+        )
+        self.assertFalse(HistorialCoincidencia.objects.exists())
+
+        self.client.post(reverse('conceptos:documento_confirmar', kwargs={'pk': documento.pk}))
+
+        self.assertEqual(HistorialCoincidencia.objects.count(), 3)
+        patron = PatronSerie.objects.get(numero_parte='NP-IMPORTADO')
+        self.assertEqual(patron.series_unicas, 3)
+        self.assertEqual(patron.estado, PatronSerie.ESTADO_APROBADO)
+        self.assertTrue(patron.activo)
+
+    def test_confirmar_factura_actualiza_historial_no_utilizable(self):
+        documento = self._crear_documento()
+        concepto = Concepto.objects.create(
+            documento=documento,
+            numero_parte='NP-EXISTENTE',
+            serie='SER-EXISTENTE',
+            descripcion='Evidencia existente',
+            cantidad=Decimal('1'),
+            precio_unitario=Decimal('10'),
+        )
+        historial = HistorialCoincidencia.objects.create(
+            concepto=concepto,
+            documento=documento,
+            numero_parte=concepto.numero_parte,
+            serie=concepto.serie,
+            descripcion=concepto.descripcion,
+            usar_para_biblioteca=False,
+        )
+        self._grant('puede_confirmar_documentoconceptos')
+        self._login()
+
+        self.client.post(reverse('conceptos:documento_confirmar', kwargs={'pk': documento.pk}))
+
+        historial.refresh_from_db()
+        self.assertTrue(historial.usar_para_biblioteca)
+        self.assertEqual(historial.confirmado_por, self.user)
 
     def test_confirmar_documento_no_duplica_historial(self):
         documento = self._crear_documento()

@@ -3,10 +3,18 @@
 {% block title %}Importar conceptos de factura - Sistema Django{% endblock %}
 
 {% block content %}
+<style>
+    .importacion-acciones { justify-content: flex-end; gap: 10px; }
+    .importacion-acciones .importacion-confirmar { background: #047857; color: #fff; }
+    .importacion-acciones .importacion-confirmar:hover { background: #065f46; color: #fff; }
+    .importacion-acciones .importacion-cancelar { background: var(--danger-soft); border-color: #fecaca; color: var(--danger); }
+    .importacion-acciones .importacion-cancelar:hover { background: #fee2e2; color: var(--danger); }
+    .importacion-estado small { display: block; margin-top: 3px; }
+</style>
 <div class="page-header">
     <div>
         <h1 class="page-title">Importar conceptos de factura</h1>
-        <p class="muted">{{ documento.folio }} · Carga conceptos desde un archivo CSV o XLSX y revisa el preview antes de confirmar.</p>
+        <p class="muted">{{ documento.folio }} · Revisa las filas y confirma las válidas.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver a la factura</a>
@@ -15,7 +23,6 @@
 
 <div class="card">
     <p class="muted">Acepta archivos CSV o XLSX. Usa estas columnas, en este orden: número de parte, serie, modelo, descripción, cantidad y precio unitario.</p>
-    <p class="muted">Primero se generará un preview; podrás revisar las filas y confirmar la importación después.</p>
     <form id="form-preview" class="form-grid" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="form-field">
@@ -47,21 +54,6 @@
                     <p class="alert alert-success" role="status">Todas las filas están listas para confirmar.</p>
                 {% endif %}
             </div>
-            <div class="page-actions">
-                {% if preview.resumen.validas %}
-                    <form method="post" action="{% url 'conceptos:conceptos_importar_confirmar' documento.pk %}"{% if preview.resumen.errores or preview.resumen.incompletas or preview.resumen.duplicadas %} data-confirm-partial{% endif %}>
-                        {% csrf_token %}
-                        <div class="form-field">
-                            <label>
-                                <input type="checkbox" name="usar_para_biblioteca" value="1" checked>
-                                Usar filas confirmadas para alimentar biblioteca
-                            </label>
-                            <p class="muted">Solo las filas válidas y confirmadas se usarán como evidencia. No se crearán patrones automáticamente en esta fase.</p>
-                        </div>
-                        <button class="btn btn-primary" type="submit" data-loading-text="Importando...">Confirmar importación</button>
-                    </form>
-                {% endif %}
-            </div>
         </div>
         <div class="table-wrap">
             <table class="data-table">
@@ -76,7 +68,6 @@
                         <th>Precio unitario</th>
                         <th>Total concepto</th>
                         <th>Estado</th>
-                        <th>Mensaje</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -90,27 +81,35 @@
                             <td>{{ fila.datos.cantidad }}</td>
                             <td>{{ fila.datos.precio_unitario }}</td>
                             <td>{{ fila.total_concepto }}</td>
-                            <td>
+                            <td class="importacion-estado">
                                 {% if fila.estado == "error" %}
-                                    <span class="badge badge-error">{{ fila.estado_label }}</span>
+                                    <span class="badge badge-error">Error</span>
                                 {% elif fila.estado == "incompleto" or fila.estado == "duplicada" %}
                                     <span class="badge badge-warning">{{ fila.estado_label }}</span>
                                 {% elif fila.sugerida %}
                                     <span class="badge badge-ok">{{ fila.estado_label }}</span>
                                 {% else %}
-                                    <span class="badge">{{ fila.estado_label }}</span>
+                                    <span class="badge">Lista / Válida</span>
+                                {% endif %}
+                                {% if fila.estado == "error" or fila.estado == "incompleto" or fila.estado == "duplicada" %}
+                                    <small class="muted">{{ fila.mensaje }}</small>
                                 {% endif %}
                             </td>
-                            <td>{{ fila.mensaje }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <div class="page-actions">
+        <div class="page-actions importacion-acciones">
+            {% if preview.resumen.validas %}
+                <form method="post" action="{% url 'conceptos:conceptos_importar_confirmar' documento.pk %}"{% if preview.resumen.errores or preview.resumen.incompletas or preview.resumen.duplicadas %} data-confirm-partial{% endif %}>
+                    {% csrf_token %}
+                    <button class="btn importacion-confirmar" type="submit" data-loading-text="Importando...">Confirmar importación</button>
+                </form>
+            {% endif %}
             <form method="post" action="{% url 'conceptos:conceptos_importar_cancelar' documento.pk %}" data-cancel-import>
                 {% csrf_token %}
-                <button class="btn btn-secondary" type="submit" data-loading-text="Cancelando...">Cancelar importación</button>
+                <button class="btn importacion-cancelar" type="submit" data-loading-text="Cancelando...">Cancelar importación</button>
             </form>
         </div>
     </div>
