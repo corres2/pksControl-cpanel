@@ -158,6 +158,22 @@ def conceptos_importar_confirmar(request, pk):
     return redirect('conceptos:documento_detail', pk=documento.pk)
 
 
+@require_POST
+@permission_required('conceptos.change_documentoconceptos')
+def conceptos_importar_cancelar(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if not documento.es_borrador:
+        messages.error(request, 'Solo se puede cancelar una importación de un documento en borrador.')
+        return redirect('conceptos:documento_detail', pk=documento.pk)
+
+    session_key = _importacion_session_key(documento)
+    if session_key in request.session:
+        del request.session[session_key]
+        request.session.modified = True
+    messages.info(request, 'Importación cancelada. No se aplicaron cambios.')
+    return redirect('conceptos:documento_detail', pk=documento.pk)
+
+
 def _importacion_session_key(documento):
     return f'{SESSION_IMPORTACION_PREFIX}{documento.pk}'
 

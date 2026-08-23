@@ -7,6 +7,7 @@ from apps.conceptos.views import (
     concepto_subir,
     concepto_update,
     conceptos_importar,
+    conceptos_importar_cancelar,
     conceptos_importar_confirmar,
     documento_cancelar,
     documento_confirmar,
@@ -30,6 +31,11 @@ urlpatterns = [
         '<int:pk>/importar/confirmar/',
         conceptos_importar_confirmar,
         name='conceptos_importar_confirmar',
+    ),
+    path(
+        '<int:pk>/importar/cancelar/',
+        conceptos_importar_cancelar,
+        name='conceptos_importar_cancelar',
     ),
     path('<int:pk>/conceptos/nuevo/', concepto_create, name='concepto_create'),
     path(

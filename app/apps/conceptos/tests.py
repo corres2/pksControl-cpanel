@@ -1376,6 +1376,42 @@ class ConceptosViewsTests(TestCase):
         self.assertContains(response, 'NP-XLSX')
         self.assertContains(response, 'Descripcion XLSX')
 
+    def test_cancelar_importacion_limpia_preview_sin_crear_conceptos(self):
+        documento = self._crear_documento()
+        self._grant('change_documentoconceptos')
+        self._login()
+        importar_url = reverse('conceptos:conceptos_importar', kwargs={'pk': documento.pk})
+        cancelar_url = reverse('conceptos:conceptos_importar_cancelar', kwargs={'pk': documento.pk})
+
+        self.client.post(
+            importar_url,
+            {'archivo': self._csv_upload(
+                'numero_parte,serie,modelo,descripcion,cantidad,precio_unitario\n'
+                'NP-CANCEL,SER-CANCEL,MOD,Descripcion,1,0\n'
+            )},
+        )
+        self.assertIn(f'conceptos_importacion_{documento.pk}', self.client.session)
+
+        response = self.client.post(cancelar_url)
+
+        detalle_url = reverse('conceptos:documento_detail', kwargs={'pk': documento.pk})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], detalle_url)
+        self.assertNotIn(f'conceptos_importacion_{documento.pk}', self.client.session)
+        self.assertFalse(Concepto.objects.filter(documento=documento).exists())
+
+    def test_cancelar_importacion_requiere_post_y_permiso(self):
+        documento = self._crear_documento()
+        self._login()
+        url = reverse('conceptos:conceptos_importar_cancelar', kwargs={'pk': documento.pk})
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 405)
+
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response['Location'])
+
     def test_importacion_numero_parte_activo_autollena_modelo_descripcion(self):
         documento = self._crear_documento()
         NumeroParte.objects.create(

@@ -9,26 +9,27 @@
         <p class="muted">{{ documento.folio }} · Carga conceptos desde un archivo CSV o XLSX y revisa el preview antes de confirmar.</p>
     </div>
     <div class="page-actions">
-        <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver</a>
+        <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver al documento</a>
     </div>
 </div>
 
 <div class="card">
-    <p class="muted">Columnas esperadas: <code>numero_parte</code>, <code>serie</code>, <code>modelo</code>, <code>descripcion</code>, <code>cantidad</code> y <code>precio_unitario</code>.</p>
-    <form class="form-grid" method="post" enctype="multipart/form-data">
+    <p class="muted">Acepta archivos CSV o XLSX. Usa estas columnas, en este orden: número de parte, serie, modelo, descripción, cantidad y precio unitario.</p>
+    <p class="muted">Primero se generará un preview; podrás revisar las filas y confirmar la importación después.</p>
+    <form id="form-preview" class="form-grid" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="form-field">
             <label for="id_archivo">Archivo CSV/XLSX</label>
             <input id="id_archivo" type="file" name="archivo" accept=".csv,.xlsx" required>
         </div>
         <div class="page-actions">
-            <button class="btn btn-primary" type="submit">Generar preview</button>
+            <button class="btn btn-primary" type="submit" data-loading-text="Generando preview...">Generar preview</button>
         </div>
     </form>
 </div>
 
 {% if preview %}
-    <div class="card">
+    <div id="preview-resumen" class="card" tabindex="-1">
         <div class="page-header">
             <div>
                 <h2 class="page-title">Preview</h2>
@@ -40,10 +41,15 @@
                     Incompletas: {{ preview.resumen.incompletas }} ·
                     Errores: {{ preview.resumen.errores }}
                 </p>
+                {% if preview.resumen.errores or preview.resumen.incompletas or preview.resumen.duplicadas %}
+                    <p class="alert alert-warning" role="status">Revisa las filas observadas. Solo se importarán las filas válidas.</p>
+                {% else %}
+                    <p class="alert alert-success" role="status">Todas las filas están listas para confirmar.</p>
+                {% endif %}
             </div>
             <div class="page-actions">
                 {% if preview.resumen.validas %}
-                    <form method="post" action="{% url 'conceptos:conceptos_importar_confirmar' documento.pk %}">
+                    <form method="post" action="{% url 'conceptos:conceptos_importar_confirmar' documento.pk %}"{% if preview.resumen.errores or preview.resumen.incompletas or preview.resumen.duplicadas %} data-confirm-partial{% endif %}>
                         {% csrf_token %}
                         <div class="form-field">
                             <label>
@@ -52,7 +58,7 @@
                             </label>
                             <p class="muted">Solo las filas válidas y confirmadas se usarán como evidencia. No se crearán patrones automáticamente en esta fase.</p>
                         </div>
-                        <button class="btn btn-primary" type="submit">Confirmar importación</button>
+                        <button class="btn btn-primary" type="submit" data-loading-text="Importando...">Confirmar importación</button>
                     </form>
                 {% endif %}
             </div>
@@ -101,6 +107,38 @@
                 </tbody>
             </table>
         </div>
+        <div class="page-actions">
+            <form method="post" action="{% url 'conceptos:conceptos_importar_cancelar' documento.pk %}" data-cancel-import>
+                {% csrf_token %}
+                <button class="btn btn-secondary" type="submit" data-loading-text="Cancelando...">Cancelar importación</button>
+            </form>
+        </div>
     </div>
 {% endif %}
+
+<script>
+    (function () {
+        var preview = document.getElementById('preview-resumen');
+        if (preview) preview.focus({preventScroll: false});
+
+        document.querySelectorAll('[data-loading-text]').forEach(function (boton) {
+            boton.form.addEventListener('submit', function (evento) {
+                if (boton.disabled) {
+                    evento.preventDefault();
+                    return;
+                }
+                if (boton.form.hasAttribute('data-cancel-import') && !window.confirm('¿Cancelar esta importación? No se aplicarán cambios.')) {
+                    evento.preventDefault();
+                    return;
+                }
+                if (boton.form.hasAttribute('data-confirm-partial') && !window.confirm('Hay filas observadas. Solo se importarán las filas válidas. ¿Deseas continuar?')) {
+                    evento.preventDefault();
+                    return;
+                }
+                boton.disabled = true;
+                boton.textContent = boton.dataset.loadingText;
+            });
+        });
+    }());
+</script>
 {% endblock %}
