@@ -1394,11 +1394,16 @@ class ConceptosViewsTests(TestCase):
 
         response = self.client.post(cancelar_url)
 
-        detalle_url = reverse('conceptos:documento_detail', kwargs={'pk': documento.pk})
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response['Location'], detalle_url)
+        self.assertEqual(response['Location'], importar_url)
         self.assertNotIn(f'conceptos_importacion_{documento.pk}', self.client.session)
         self.assertFalse(Concepto.objects.filter(documento=documento).exists())
+        self.assertFalse(HistorialCoincidencia.objects.exists())
+
+        response = self.client.get(importar_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="preview-resumen"')
+        self.assertContains(response, 'Importación cancelada. No se aplicaron cambios.')
 
     def test_cancelar_importacion_requiere_post_y_permiso(self):
         documento = self._crear_documento()

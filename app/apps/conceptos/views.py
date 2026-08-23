@@ -171,7 +171,7 @@ def conceptos_importar_cancelar(request, pk):
         del request.session[session_key]
         request.session.modified = True
     messages.info(request, 'Importación cancelada. No se aplicaron cambios.')
-    return redirect('conceptos:documento_detail', pk=documento.pk)
+    return redirect('conceptos:conceptos_importar', pk=documento.pk)
 
 
 def _importacion_session_key(documento):

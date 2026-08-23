@@ -116,6 +116,8 @@
     </div>
 {% endif %}
 
+<!-- CDN temporal; la cancelación conserva fallback con confirm() sin SweetAlert2. -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     (function () {
         var preview = document.getElementById('preview-resumen');
@@ -127,12 +129,29 @@
                     evento.preventDefault();
                     return;
                 }
-                if (boton.form.hasAttribute('data-cancel-import') && !window.confirm('¿Cancelar esta importación? No se aplicarán cambios.')) {
+                if (boton.form.hasAttribute('data-confirm-partial') && !window.confirm('Hay filas observadas. Solo se importarán las filas válidas. ¿Deseas continuar?')) {
                     evento.preventDefault();
                     return;
                 }
-                if (boton.form.hasAttribute('data-confirm-partial') && !window.confirm('Hay filas observadas. Solo se importarán las filas válidas. ¿Deseas continuar?')) {
+                if (boton.form.hasAttribute('data-cancel-import')) {
                     evento.preventDefault();
+                    var confirmar = window.Swal
+                        ? window.Swal.fire({
+                            title: 'Cancelar importación',
+                            text: 'No se aplicarán cambios al documento.',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, cancelar',
+                            cancelButtonText: 'Volver',
+                            reverseButtons: true
+                        }).then(function (resultado) { return resultado.isConfirmed; })
+                        : Promise.resolve(window.confirm('¿Cancelar esta importación? No se aplicarán cambios.'));
+                    confirmar.then(function (confirmado) {
+                        if (!confirmado) return;
+                        boton.disabled = true;
+                        boton.textContent = boton.dataset.loadingText;
+                        HTMLFormElement.prototype.submit.call(boton.form);
+                    });
                     return;
                 }
                 boton.disabled = true;
