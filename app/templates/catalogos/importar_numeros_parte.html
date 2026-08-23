@@ -53,10 +53,10 @@
 </div>
 
 {% if preview %}
-    <div class="card">
+    <div class="card" id="preview" tabindex="-1">
         <div class="page-header">
             <div>
-                <h2 class="page-title">Vista previa</h2>
+                <h2 class="page-title" id="preview-title" tabindex="-1">Vista previa</h2>
                 <p class="muted">{{ preview.archivo_nombre }}</p>
             </div>
             <div class="page-actions">
@@ -87,11 +87,16 @@
             </div>
         </div>
 
-        <form class="page-actions" method="post">
-            {% csrf_token %}
-            <button class="btn btn-primary" type="submit" name="accion" value="confirmar">Confirmar importación</button>
-            <button class="btn btn-secondary" type="submit" name="accion" value="cancelar">Cancelar</button>
-        </form>
+        <div class="page-actions">
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-primary" type="submit" name="accion" value="confirmar">Confirmar importación</button>
+            </form>
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-secondary" type="submit" name="accion" value="cancelar">Cancelar</button>
+            </form>
+        </div>
     </div>
 
     {% if preview.muestra %}
@@ -125,14 +130,15 @@
     {% endif %}
 
     {% if preview.errores %}
-        <div class="card">
+        <div class="card" id="preview-errors">
             <h2>Errores detectados</h2>
-            <p class="muted">Se muestran hasta 20 errores.</p>
+            <p class="muted">Se muestran hasta 20 errores. Corrige las filas indicadas antes de confirmar.</p>
             <div class="table-wrap">
                 <table class="data-table">
                     <thead>
                         <tr>
                             <th>Fila</th>
+                            <th>Tipo</th>
                             <th>Error</th>
                         </tr>
                     </thead>
@@ -140,6 +146,15 @@
                         {% for error in preview.errores|slice:":20" %}
                             <tr>
                                 <td>{{ error.fila }}</td>
+                                <td>
+                                    {% if error.error == "numero_parte es requerido." or error.error == "descripcion es requerida." %}
+                                        <span class="badge badge-warning">Requerido</span>
+                                    {% elif error.error == "numero_parte duplicado dentro del archivo." %}
+                                        <span class="badge badge-warning">Duplicado</span>
+                                    {% else %}
+                                        <span class="badge badge-error">Error</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ error.error }}</td>
                             </tr>
                         {% endfor %}
@@ -148,7 +163,43 @@
             </div>
         </div>
     {% endif %}
+
+    <div class="page-actions">
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-primary" type="submit" name="accion" value="confirmar">Confirmar importación</button>
+        </form>
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-secondary" type="submit" name="accion" value="cancelar">Cancelar</button>
+        </form>
+    </div>
 {% endif %}
 
 {% include "catalogos/partials/resultado_importacion.html" %}
+
+{% if resultado %}
+    <div class="card" id="resultado-importacion">
+        <h2>¿Qué quieres hacer ahora?</h2>
+        <div class="page-actions">
+            <a class="btn btn-primary" href="{% url 'catalogos:numeros_parte_list' %}">Volver al listado</a>
+            <a class="btn btn-secondary" href="{% url 'catalogos:importar_numeros_parte' %}">Importar otro archivo</a>
+            {% if perms.catalogos.puede_ver_historial_cargas_catalogo %}
+                <a class="btn btn-secondary" href="{% url 'catalogos:cargas_list' %}">Ver historial de cargas</a>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+{% if preview %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const preview = document.getElementById('preview');
+            const title = document.getElementById('preview-title');
+            if (!preview) return;
+            preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (title) title.focus({ preventScroll: true });
+        });
+    </script>
+{% endif %}
 {% endblock %}

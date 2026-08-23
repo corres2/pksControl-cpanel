@@ -39,6 +39,7 @@
                     <thead>
                         <tr>
                             <th>Fila</th>
+                            <th>Tipo</th>
                             <th>Error</th>
                         </tr>
                     </thead>
@@ -46,6 +47,15 @@
                         {% for error in resultado.errores %}
                             <tr>
                                 <td>{{ error.fila }}</td>
+                                <td>
+                                    {% if error.error == "numero_parte es requerido." or error.error == "descripcion es requerida." %}
+                                        <span class="badge badge-warning">Requerido</span>
+                                    {% elif error.error == "numero_parte duplicado dentro del archivo." %}
+                                        <span class="badge badge-warning">Duplicado</span>
+                                    {% else %}
+                                        <span class="badge badge-error">Error</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ error.error }}</td>
                             </tr>
                         {% endfor %}
