@@ -1,25 +1,58 @@
 {% extends "base.html" %}
 
-{% block title %}Conceptos - Sistema Django{% endblock %}
+{% block title %}Facturas - Sistema Django{% endblock %}
 
 {% block content %}
+<style>
+    .documentos-listado .filtros-card {
+        padding: 14px 16px;
+    }
+
+    .documentos-listado .filtros-grid {
+        align-items: end;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: minmax(260px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) auto;
+    }
+
+    .documentos-listado .filtros-grid .form-field,
+    .documentos-listado .filtros-grid .page-actions {
+        margin: 0;
+    }
+
+    .documentos-listado .observaciones-listado {
+        display: block;
+        max-width: 260px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 760px) {
+        .documentos-listado .filtros-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="documentos-listado">
 <div class="page-header">
     <div>
-        <h1 class="page-title">Documentos de conceptos</h1>
-        <p class="muted">Consulta, filtra y administra tus documentos de captura de conceptos.</p>
+        <h1 class="page-title">Facturas</h1>
+        <p class="muted">Consulta, filtra y administra las facturas capturadas.</p>
     </div>
     <div class="page-actions">
         {% if perms.conceptos.add_documentoconceptos %}
-            <a class="btn btn-primary" href="{% url 'conceptos:documento_create' %}">Nuevo documento</a>
+            <a class="btn btn-primary" href="{% url 'conceptos:documento_create' %}">Nueva factura</a>
         {% endif %}
     </div>
 </div>
 
-<div class="card">
-    <form class="form-grid" method="get">
+<div class="card filtros-card">
+    <form class="filtros-grid" method="get" data-filtros-documentos>
         <div class="form-field">
             <label for="id_q">Buscar por folio</label>
-            <input id="id_q" type="search" name="q" value="{{ busqueda }}" placeholder="Ejemplo: CON-000001">
+            <input id="id_q" type="search" name="q" value="{{ busqueda }}" placeholder="Ejemplo: FACT-000001">
         </div>
         <div class="form-field">
             <label for="id_estado">Estado</label>
@@ -28,7 +61,7 @@
                 {% for valor, etiqueta in status_choices %}
                     <option value="{{ valor }}"{% if estado == valor %} selected{% endif %}>{{ etiqueta }}</option>
                 {% endfor %}
-            </select>
+        </select>
         </div>
         <div class="form-field">
             <label for="id_fuente">Fuente</label>
@@ -41,92 +74,99 @@
         </div>
         <div class="page-actions">
             <button class="btn btn-primary" type="submit">Buscar</button>
-            {% if filtros_aplicados %}
-                <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Limpiar filtros</a>
-            {% endif %}
+            <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}" data-limpiar-filtros{% if not filtros_aplicados %} hidden{% endif %}>Limpiar filtros</a>
         </div>
     </form>
-    {% if filtros_activos %}
-        <p class="muted">Filtros activos: {% for filtro in filtros_activos %}<span class="badge">{{ filtro }}</span> {% endfor %}</p>
-    {% endif %}
 </div>
 
-<div class="card">
-    <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Folio</th>
-                    <th>Fuente</th>
-                    <th>Estado</th>
-                    <th>Total</th>
-                    <th>Usuario</th>
-                    <th>Creado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for documento in page_obj %}
-                    <tr>
-                        <td><a href="{% url 'conceptos:documento_detail' documento.pk %}">{{ documento.folio }}</a></td>
-                        <td>{{ documento.fuente }}</td>
-                        <td>
-                            {% if documento.status == "borrador" %}
-                                <span class="badge badge-warning">{{ documento.status }}</span>
-                            {% elif documento.status == "confirmado" %}
-                                <span class="badge badge-ok">{{ documento.status }}</span>
-                            {% elif documento.status == "cancelado" %}
-                                <span class="badge badge-error">{{ documento.status }}</span>
-                            {% else %}
-                                <span class="badge">{{ documento.status }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ documento.total|floatformat:2 }}</td>
-                        <td>{{ documento.usuario|default:"" }}</td>
-                        <td>{{ documento.created_at|date:"Y-m-d H:i" }}</td>
-                        <td>
-                            <div class="table-actions">
-                                <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Ver detalle</a>
-                                {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
-                                    <a class="btn btn-secondary" href="{% url 'conceptos:documento_update' documento.pk %}">Editar</a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="7">
-                            <div class="alert" role="status">
-                                {% if filtros_aplicados %}
-                                    <strong>No encontramos documentos con los filtros aplicados.</strong>
-                                    <p class="muted">Prueba con otros criterios o limpia los filtros para ver todos los documentos.</p>
-                                    <div class="page-actions">
-                                        <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Limpiar filtros</a>
-                                {% else %}
-                                    <strong>Aún no hay documentos de conceptos registrados.</strong>
-                                    <p class="muted">Crea un documento para comenzar a capturar conceptos.</p>
-                                    <div class="page-actions">
-                                {% endif %}
-                                {% if perms.conceptos.add_documentoconceptos %}
-                                    <a class="btn btn-primary" href="{% url 'conceptos:documento_create' %}">Nuevo documento</a>
-                                {% endif %}
-                                    </div>
-                            </div>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div id="documentos-resultados" data-ajax-resultados aria-live="polite">
+    {% include "conceptos/partials/documentos_resultados.html" %}
+</div>
 
-    <div class="pagination">
-        <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_previous %}
-            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
-        {% endif %}
-        {% if page_obj.has_next %}
-            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
-        {% endif %}
-    </div>
+<script>
+(function () {
+    const form = document.querySelector('[data-filtros-documentos]');
+    const resultados = document.querySelector('[data-ajax-resultados]');
+    if (!form || !resultados || !window.fetch) return;
+
+    let requestActive = false;
+    const buscar = form.querySelector('button[type="submit"]');
+    const limpiar = form.querySelector('[data-limpiar-filtros]');
+
+    function sincronizarFormulario(url) {
+        ['q', 'estado', 'fuente'].forEach(function (nombre) {
+            const campo = form.elements[nombre];
+            if (campo) campo.value = url.searchParams.get(nombre) || '';
+        });
+        if (limpiar) {
+            limpiar.hidden = !['q', 'estado', 'fuente'].some(function (nombre) {
+                return Boolean(url.searchParams.get(nombre));
+            });
+        }
+    }
+
+    async function cargarResultados(url, actualizarHistorial) {
+        if (requestActive) return;
+        requestActive = true;
+        resultados.setAttribute('aria-busy', 'true');
+        resultados.insertAdjacentHTML('afterbegin', '<div class="alert" role="status" data-ajax-loading>Actualizando resultados...</div>');
+        if (buscar) {
+            buscar.disabled = true;
+            buscar.dataset.textoOriginal = buscar.textContent;
+            buscar.textContent = 'Buscando...';
+        }
+        try {
+            const respuesta = await fetch(url.toString(), {
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html'}
+            });
+            const tipo = respuesta.headers.get('content-type') || '';
+            if (!respuesta.ok || !tipo.includes('text/html') || respuesta.redirected) {
+                throw new Error('La sesión puede haber expirado. Recarga la página e inicia sesión nuevamente.');
+            }
+            resultados.innerHTML = await respuesta.text();
+            if (actualizarHistorial) window.history.pushState({}, '', url.toString());
+            sincronizarFormulario(url);
+        } catch (error) {
+            resultados.innerHTML = '<div class="alert alert-error" role="alert">' + (error.message || 'No se pudieron actualizar los resultados. Intenta nuevamente.') + '</div>';
+        } finally {
+            resultados.removeAttribute('aria-busy');
+            requestActive = false;
+            if (buscar) {
+                buscar.disabled = false;
+                buscar.textContent = buscar.dataset.textoOriginal || 'Buscar';
+            }
+        }
+    }
+
+    form.addEventListener('submit', function (evento) {
+        evento.preventDefault();
+        const url = new URL(form.action || window.location.href, window.location.href);
+        url.search = new URLSearchParams(new FormData(form)).toString();
+        cargarResultados(url, true);
+    });
+
+    form.addEventListener('click', function (evento) {
+        const enlace = evento.target.closest('[data-limpiar-filtros]');
+        if (!enlace) return;
+        evento.preventDefault();
+        cargarResultados(new URL(enlace.href, window.location.href), true);
+    });
+
+    resultados.addEventListener('click', function (evento) {
+        const enlace = evento.target.closest('a[href]');
+        if (!enlace || !enlace.closest('.pagination')) return;
+        const url = new URL(enlace.href, window.location.href);
+        if (url.origin !== window.location.origin) return;
+        evento.preventDefault();
+        cargarResultados(url, true);
+    });
+
+    window.addEventListener('popstate', function () {
+        cargarResultados(new URL(window.location.href), false);
+    });
+
+    sincronizarFormulario(new URL(window.location.href));
+}());
+</script>
 </div>
 {% endblock %}

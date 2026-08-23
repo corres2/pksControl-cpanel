@@ -24,7 +24,7 @@ class ConceptosModelTests(TestCase):
     def test_crear_documento_genera_folio(self):
         documento = DocumentoConceptos.objects.create()
 
-        self.assertEqual(documento.folio, 'CON-000001')
+        self.assertEqual(documento.folio, 'FACT-000001')
 
     def test_crear_concepto_calcula_total_concepto(self):
         documento = DocumentoConceptos.objects.create()
@@ -457,7 +457,7 @@ class ConceptosViewsTests(TestCase):
         response = self.client.get(reverse('conceptos:documentos_list'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Conceptos')
+        self.assertContains(response, 'Facturas')
 
     def test_listado_filtra_por_folio_y_estado(self):
         primero = self._crear_documento()
@@ -475,16 +475,46 @@ class ConceptosViewsTests(TestCase):
         self.assertContains(response, 'Filtros activos:')
         self.assertContains(response, 'Limpiar filtros')
 
+    def test_listado_ajax_devuelve_solo_partial_de_resultados(self):
+        documento = self._crear_documento()
+        self._grant('view_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:documentos_list'),
+            {'q': documento.folio},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, documento.folio)
+        self.assertNotContains(response, 'Facturas')
+        self.assertNotContains(response, 'data-filtros-documentos')
+
+    def test_listado_paginacion_conserva_filtros(self):
+        for _ in range(26):
+            self._crear_documento()
+        self._grant('view_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:documentos_list'),
+            {'q': 'FACT-', 'page': 2},
+        )
+
+        self.assertContains(response, 'page=1')
+        self.assertContains(response, 'q=FACT-')
+
     def test_listado_sin_resultados_por_filtro_muestra_estado_util(self):
         self._crear_documento()
         self._grant('view_documentoconceptos', 'add_documentoconceptos')
         self._login()
 
-        response = self.client.get(reverse('conceptos:documentos_list'), {'q': 'CON-NO-EXISTE'})
+        response = self.client.get(reverse('conceptos:documentos_list'), {'q': 'FACT-NO-EXISTE'})
 
-        self.assertContains(response, 'No encontramos documentos con los filtros aplicados.')
+        self.assertContains(response, 'No encontramos facturas con los filtros aplicados.')
         self.assertContains(response, 'Limpiar filtros')
-        self.assertContains(response, 'Nuevo documento')
+        self.assertContains(response, 'Nueva factura')
 
     def test_listado_vacio_muestra_accion_para_crear(self):
         self._grant('view_documentoconceptos', 'add_documentoconceptos')
@@ -492,8 +522,8 @@ class ConceptosViewsTests(TestCase):
 
         response = self.client.get(reverse('conceptos:documentos_list'))
 
-        self.assertContains(response, 'Aún no hay documentos de conceptos registrados.')
-        self.assertContains(response, 'Nuevo documento')
+        self.assertContains(response, 'Aún no hay facturas cargadas.')
+        self.assertContains(response, 'Nueva factura')
 
     def test_detalle_muestra_resumen_compacto_y_acciones_del_borrador(self):
         documento = self._crear_documento()
@@ -514,13 +544,13 @@ class ConceptosViewsTests(TestCase):
         self.assertContains(response, 'Conceptos')
         self.assertContains(response, '· Total: 0.00')
         self.assertContains(response, 'Fuente: manual')
-        self.assertContains(response, '✎ Editar')
+        self.assertContains(response, '✎ Editar observaciones')
         self.assertContains(response, '⬇ Exportar Word')
         self.assertContains(response, '← Volver')
         self.assertContains(response, '＋ Agregar concepto')
         self.assertContains(response, '⇧ Importar conceptos')
-        self.assertContains(response, '✓ Confirmar documento')
-        self.assertContains(response, '⚠ Cancelar documento')
+        self.assertContains(response, '✓ Confirmar factura')
+        self.assertContains(response, '⚠ Cancelar factura')
         self.assertNotContains(response, 'Sin observaciones.')
 
     def test_usuario_con_permiso_add_crea_documento(self):
@@ -533,7 +563,7 @@ class ConceptosViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(DocumentoConceptos.objects.filter(folio='CON-000001').exists())
+        self.assertTrue(DocumentoConceptos.objects.filter(folio='FACT-000001').exists())
 
     def test_usuario_con_change_agrega_concepto(self):
         documento = self._crear_documento()
@@ -1966,7 +1996,7 @@ class ConceptosViewsTests(TestCase):
         self.assertFalse(response.json()['ok'])
         self.assertEqual(
             response.json()['error'],
-            'No se pueden reordenar documentos cancelados.',
+            'No se pueden reordenar conceptos de una factura cancelada.',
         )
 
     def test_usuario_sin_change_no_puede_reordenar(self):

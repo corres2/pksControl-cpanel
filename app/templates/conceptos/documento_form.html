@@ -3,10 +3,16 @@
 {% block title %}{{ titulo }} - Sistema Django{% endblock %}
 
 {% block content %}
+<style>
+    .documento-form .card { padding: 16px; }
+    .documento-form .page-header { margin-bottom: 10px; }
+    .documento-form .form-field { max-width: 720px; }
+</style>
+<div class="documento-form">
 <div class="page-header">
     <div>
-        <h1 class="page-title">{{ titulo }}</h1>
-        <p class="muted">Registra las observaciones generales del documento operativo.</p>
+        <h1 class="page-title">{% if documento %}Editar observaciones{% else %}Nueva factura{% endif %}</h1>
+        <p class="muted">{% if documento %}Actualiza las observaciones de {{ documento.folio }}.{% else %}Crea una factura en borrador para comenzar a capturar conceptos.{% endif %}</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Volver</a>
@@ -27,9 +33,10 @@
         </div>
 
         <div class="page-actions">
-            <button class="btn btn-primary" type="submit">Guardar documento</button>
+            <button class="btn btn-primary" type="submit">{% if documento %}Guardar factura{% else %}Crear factura{% endif %}</button>
             <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Cancelar</a>
         </div>
     </form>
+</div>
 </div>
 {% endblock %}

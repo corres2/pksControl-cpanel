@@ -55,7 +55,7 @@ class DocumentoConceptos(models.Model):
         ]
 
     def __str__(self):
-        return self.folio or 'Documento de conceptos'
+        return self.folio or 'Factura'
 
     @property
     def es_borrador(self):
@@ -71,7 +71,7 @@ class DocumentoConceptos(models.Model):
                     .first()
                     or 0
                 )
-                self.folio = f'CON-{ultimo_id + 1:06d}'
+                self.folio = f'FACT-{ultimo_id + 1:06d}'
                 super().save(*args, **kwargs)
                 return
         super().save(*args, **kwargs)

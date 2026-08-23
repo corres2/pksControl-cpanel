@@ -59,7 +59,11 @@ def documentos_list(request):
     page_obj = Paginator(queryset, 25).get_page(request.GET.get('page'))
     return render(
         request,
-        'conceptos/documentos_list.html',
+        (
+            'conceptos/partials/documentos_resultados.html'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            else 'conceptos/documentos_list.html'
+        ),
         {
             'page_obj': page_obj,
             'busqueda': busqueda,
@@ -82,13 +86,13 @@ def documento_create(request):
         documento = form.save(commit=False)
         documento.usuario = request.user if request.user.is_authenticated else None
         documento.save()
-        messages.success(request, 'Documento creado correctamente.')
+        messages.success(request, 'Factura creada correctamente.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     return render(
         request,
         'conceptos/documento_form.html',
-        {'form': form, 'titulo': 'Nuevo documento'},
+        {'form': form, 'titulo': 'Nueva factura'},
     )
 
 
@@ -118,13 +122,13 @@ def documento_exportar_word(request, pk):
 def documento_update(request, pk):
     documento = get_object_or_404(DocumentoConceptos, pk=pk)
     if not documento.es_borrador:
-        messages.error(request, 'Solo se pueden editar documentos en borrador.')
+        messages.error(request, 'Solo se pueden editar facturas en borrador.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     form = DocumentoConceptosForm(request.POST or None, instance=documento)
     if request.method == 'POST' and form.is_valid():
         form.save()
-        messages.success(request, 'Documento actualizado correctamente.')
+        messages.success(request, 'Factura actualizada correctamente.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     return render(
@@ -138,7 +142,7 @@ def documento_update(request, pk):
 def conceptos_importar(request, pk):
     documento = get_object_or_404(DocumentoConceptos, pk=pk)
     if not documento.es_borrador:
-        messages.error(request, 'Solo se pueden importar conceptos en documentos en borrador.')
+        messages.error(request, 'Solo se pueden importar conceptos en facturas en borrador.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     preview = None
@@ -167,7 +171,7 @@ def conceptos_importar(request, pk):
 def conceptos_importar_confirmar(request, pk):
     documento = get_object_or_404(DocumentoConceptos, pk=pk)
     if not documento.es_borrador:
-        messages.error(request, 'Solo se pueden importar conceptos en documentos en borrador.')
+        messages.error(request, 'Solo se pueden importar conceptos en facturas en borrador.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     session_key = _importacion_session_key(documento)
@@ -188,7 +192,7 @@ def conceptos_importar_confirmar(request, pk):
     )
     del request.session[session_key]
     request.session.modified = True
-    messages.success(request, f'Conceptos importados correctamente: {creados}.')
+    messages.success(request, f'Conceptos de factura importados correctamente: {creados}.')
     return redirect('conceptos:documento_detail', pk=documento.pk)
 
 
@@ -197,7 +201,7 @@ def conceptos_importar_confirmar(request, pk):
 def conceptos_importar_cancelar(request, pk):
     documento = get_object_or_404(DocumentoConceptos, pk=pk)
     if not documento.es_borrador:
-        messages.error(request, 'Solo se puede cancelar una importación de un documento en borrador.')
+        messages.error(request, 'Solo se puede cancelar una importación de una factura en borrador.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     session_key = _importacion_session_key(documento)
@@ -216,7 +220,7 @@ def _importacion_session_key(documento):
 def concepto_create(request, pk):
     documento = get_object_or_404(DocumentoConceptos, pk=pk)
     if not documento.es_borrador:
-        messages.error(request, 'Solo se pueden agregar conceptos en borrador.')
+        messages.error(request, 'Solo se pueden agregar conceptos en una factura en borrador.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     form = ConceptoForm(request.POST or None, documento=documento)
@@ -283,7 +287,7 @@ def concepto_update(request, pk, concepto_id):
     documento = get_object_or_404(DocumentoConceptos, pk=pk)
     concepto = get_object_or_404(Concepto, pk=concepto_id, documento=documento)
     if not documento.es_borrador:
-        messages.error(request, 'Solo se pueden editar conceptos en borrador.')
+        messages.error(request, 'Solo se pueden editar conceptos en una factura en borrador.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     form = ConceptoForm(request.POST or None, instance=concepto, documento=documento)
@@ -352,7 +356,7 @@ def concepto_delete(request, pk, concepto_id):
     documento = get_object_or_404(DocumentoConceptos, pk=pk)
     concepto = get_object_or_404(Concepto, pk=concepto_id, documento=documento)
     if not documento.es_borrador:
-        messages.error(request, 'Solo se pueden quitar conceptos en borrador.')
+        messages.error(request, 'Solo se pueden quitar conceptos en una factura en borrador.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     concepto.delete()
@@ -379,10 +383,10 @@ def _reordenar_concepto(request, pk, concepto_id, direccion):
     if documento.status == DocumentoConceptos.STATUS_CANCELADO:
         if es_ajax:
             return JsonResponse(
-                {'ok': False, 'error': 'No se pueden reordenar documentos cancelados.'},
+                {'ok': False, 'error': 'No se pueden reordenar conceptos de una factura cancelada.'},
                 status=400,
             )
-        messages.error(request, 'No se pueden reordenar documentos cancelados.')
+        messages.error(request, 'No se pueden reordenar conceptos de una factura cancelada.')
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     _normalizar_ordenes(documento)
@@ -642,7 +646,7 @@ def documento_confirmar(request, pk):
         documento.save(update_fields=['status', 'updated_at'])
         for concepto in documento.conceptos.all():
             registrar_historial_concepto(concepto, usuario=request.user)
-        messages.success(request, 'Documento confirmado correctamente.')
+    messages.success(request, 'Factura confirmada correctamente.')
     return redirect('conceptos:documento_detail', pk=documento.pk)
 
 
@@ -653,5 +657,5 @@ def documento_cancelar(request, pk):
     if documento.status != DocumentoConceptos.STATUS_CANCELADO:
         documento.status = DocumentoConceptos.STATUS_CANCELADO
         documento.save(update_fields=['status', 'updated_at'])
-        messages.success(request, 'Documento cancelado correctamente.')
+        messages.success(request, 'Factura cancelada correctamente.')
     return redirect('conceptos:documento_detail', pk=documento.pk)

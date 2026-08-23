@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Importar conceptos - Sistema Django{% endblock %}
+{% block title %}Importar conceptos de factura - Sistema Django{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Importar conceptos</h1>
+        <h1 class="page-title">Importar conceptos de factura</h1>
         <p class="muted">{{ documento.folio }} · Carga conceptos desde un archivo CSV o XLSX y revisa el preview antes de confirmar.</p>
     </div>
     <div class="page-actions">
-        <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver al documento</a>
+        <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver a la factura</a>
     </div>
 </div>
 

@@ -35,7 +35,7 @@
     </div>
     <div class="page-actions">
         {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
-            <a class="btn btn-secondary" href="{% url 'conceptos:documento_update' documento.pk %}">✎ Editar</a>
+            <a class="btn btn-secondary" href="{% url 'conceptos:documento_update' documento.pk %}">✎ Editar observaciones</a>
         {% endif %}
         <a class="btn btn-secondary" href="{% url 'conceptos:documento_exportar_word' documento.pk %}">⬇ Exportar Word</a>
         <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">← Volver</a>
@@ -124,7 +124,7 @@
                     <tr>
                         <td colspan="9">
                             <div class="alert" role="status">
-                                <strong>Este documento aún no tiene conceptos.</strong>
+                                <strong>Esta factura aún no tiene conceptos.</strong>
                                 <p class="muted">Usa Agregar concepto o Importar conceptos para comenzar.</p>
                             </div>
                         </td>
@@ -138,13 +138,13 @@
             {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos %}
                 <form method="post" action="{% url 'conceptos:documento_confirmar' documento.pk %}" data-confirm-action="confirmar">
                     {% csrf_token %}
-                    <button class="btn btn-primary" style="background: var(--success);" type="submit">✓ Confirmar documento</button>
+                <button class="btn btn-primary" style="background: var(--success);" type="submit">✓ Confirmar factura</button>
                 </form>
             {% endif %}
             {% if documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
                 <form method="post" action="{% url 'conceptos:documento_cancelar' documento.pk %}" data-confirm-action="cancelar">
                     {% csrf_token %}
-                    <button class="btn btn-danger-light" type="submit">⚠ Cancelar documento</button>
+                    <button class="btn btn-danger-light" type="submit">⚠ Cancelar factura</button>
                 </form>
             {% endif %}
         </div>
@@ -226,11 +226,11 @@
         function confirmarAccion(formulario, accion) {
             var inactivar = accion === 'cancelar';
             var titulo = accion === 'confirmar'
-                ? '¿Confirmar documento?'
-                : (inactivar ? '¿Cancelar documento?' : '¿Quitar concepto?');
+                ? '¿Confirmar factura?'
+                : (inactivar ? '¿Cancelar factura?' : '¿Quitar concepto?');
             var texto = accion === 'confirmar'
-                ? 'Después de confirmar, el documento dejará de ser un borrador.'
-                : (inactivar ? 'Esta acción cambiará el estado del documento.' : 'El concepto se quitará del documento.');
+                ? 'Después de confirmar, la factura dejará de ser un borrador.'
+                : (inactivar ? 'Esta acción cambiará el estado de la factura.' : 'El concepto se quitará de la factura.');
 
             if (window.Swal) {
                 return window.Swal.fire({
