@@ -491,7 +491,7 @@ class NumeroParteManualViewsTests(TestCase):
         self._grant('add_numeroparte')
         response = self.client.get(reverse('catalogos:numeros_parte_list'))
 
-        self.assertContains(response, 'Nuevo numero de parte')
+        self.assertContains(response, 'Nuevo número de parte')
 
     def test_listado_muestra_boton_editar_solo_con_permiso_change(self):
         self._crear_numero_parte()

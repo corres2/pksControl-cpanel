@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Importar numeros de parte - Sistema Django{% endblock %}
+{% block title %}Importar números de parte - Sistema Django{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Importar numeros de parte</h1>
-        <p class="muted">Carga el catalogo interno desde un archivo CSV o XLSX.</p>
+        <h1 class="page-title">Importar números de parte</h1>
+        <p class="muted">Carga el catálogo interno desde un archivo CSV o XLSX.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Volver al listado</a>
@@ -19,7 +19,7 @@
 
 <div class="card">
     <h2>Formato esperado</h2>
-    <p class="alert alert-success">La importacion lee las columnas por posicion, no por nombre.</p>
+    <p class="alert alert-success">La importación acepta CSV o XLSX y lee las columnas por posición, no por nombre.</p>
 
     <div class="table-wrap">
         <table class="data-table">
@@ -32,10 +32,10 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td>A/1</td><td>numero_parte</td><td>Obligatorio</td><td>ABC123</td></tr>
+                <tr><td>A/1</td><td>Número de parte</td><td>Obligatorio</td><td>ABC123</td></tr>
                 <tr><td>B/2</td><td>modelo</td><td>Opcional</td><td>MOD-2026</td></tr>
-                <tr><td>C/3</td><td>descripcion</td><td>Obligatorio</td><td>Sensor de temperatura</td></tr>
-                <tr><td>D/4</td><td>fraccion</td><td>Opcional</td><td>9026.10.01</td></tr>
+                <tr><td>C/3</td><td>Descripción</td><td>Obligatorio</td><td>Sensor de temperatura</td></tr>
+                <tr><td>D/4</td><td>Fracción</td><td>Opcional</td><td>9026.10.01</td></tr>
             </tbody>
         </table>
     </div>
@@ -70,15 +70,15 @@
 
         <div class="card-grid">
             <div class="quick-card">
-                <strong>Filas validas</strong>
+                <strong>Filas válidas</strong>
                 <span class="muted">{{ preview.filas_validas }}</span>
             </div>
             <div class="quick-card">
-                <strong>Crearian</strong>
+                <strong>Crearían</strong>
                 <span class="muted">{{ preview.crearian }}</span>
             </div>
             <div class="quick-card">
-                <strong>Actualizarian</strong>
+                <strong>Actualizarían</strong>
                 <span class="muted">{{ preview.actualizarian }}</span>
             </div>
             <div class="quick-card">
@@ -89,23 +89,23 @@
 
         <form class="page-actions" method="post">
             {% csrf_token %}
-            <button class="btn btn-primary" type="submit" name="accion" value="confirmar">Confirmar importacion</button>
+            <button class="btn btn-primary" type="submit" name="accion" value="confirmar">Confirmar importación</button>
             <button class="btn btn-secondary" type="submit" name="accion" value="cancelar">Cancelar</button>
         </form>
     </div>
 
     {% if preview.muestra %}
         <div class="card">
-            <h2>Muestra de filas validas</h2>
+            <h2>Muestra de filas válidas</h2>
             <div class="table-wrap">
                 <table class="data-table">
                     <thead>
                         <tr>
                             <th>Fila</th>
-                            <th>Numero de parte</th>
+                            <th>Número de parte</th>
                             <th>Modelo</th>
-                            <th>Descripcion</th>
-                            <th>Fraccion</th>
+                            <th>Descripción</th>
+                            <th>Fracción</th>
                         </tr>
                     </thead>
                     <tbody>

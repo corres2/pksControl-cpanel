@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Numeros de parte - Sistema Django{% endblock %}
+{% block title %}Números de parte - Sistema Django{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Numeros de parte</h1>
-        <p class="muted">Consulta y administra el catalogo interno de numeros de parte.</p>
+        <h1 class="page-title">Números de parte</h1>
+        <p class="muted">Consulta y administra el catálogo interno de números de parte.</p>
     </div>
     <div class="page-actions">
         {% if perms.catalogos.view_numeroparte %}
@@ -16,12 +16,12 @@
         {% endif %}
         {% if perms.catalogos.add_numeroparte %}
             <a class="btn btn-primary" href="{% url 'catalogos:numero_parte_create' %}">
-                Nuevo numero de parte
+                Nuevo número de parte
             </a>
         {% endif %}
         {% if perms.catalogos.puede_importar_numeroparte %}
             <a class="btn btn-secondary" href="{% url 'catalogos:importar_numeros_parte' %}">
-                Importar CSV
+                Importar CSV/XLSX
             </a>
         {% endif %}
     </div>
@@ -32,15 +32,15 @@
         <div class="card-grid">
             <div class="form-field">
                 <label for="q">Buscar</label>
-                <input id="q" type="search" name="q" value="{{ q }}" placeholder="Numero, modelo, descripcion o fraccion">
+                <input id="q" type="search" name="q" value="{{ q }}" placeholder="Número, modelo, descripción o fracción">
             </div>
             <div class="form-field">
                 <label for="modelo">Modelo</label>
                 <input id="modelo" type="search" name="modelo" value="{{ modelo }}" placeholder="Modelo">
             </div>
             <div class="form-field">
-                <label for="fraccion">Fraccion</label>
-                <input id="fraccion" type="search" name="fraccion" value="{{ fraccion }}" placeholder="Fraccion">
+                <label for="fraccion">Fracción</label>
+                <input id="fraccion" type="search" name="fraccion" value="{{ fraccion }}" placeholder="Fracción">
             </div>
             <div class="form-field">
                 <label for="estado">Estado</label>
@@ -63,10 +63,10 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Numero de parte</th>
+                    <th>Número de parte</th>
                     <th>Modelo</th>
-                    <th>Descripcion</th>
-                    <th>Fraccion</th>
+                    <th>Descripción</th>
+                    <th>Fracción</th>
                     <th>Estado</th>
                     <th>Actualizado</th>
                     <th>Acciones</th>

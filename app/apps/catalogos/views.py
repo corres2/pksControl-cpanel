@@ -304,7 +304,7 @@ def numero_parte_inactivar(request, pk):
     numero_parte = get_object_or_404(NumeroParte, pk=pk)
     numero_parte.activo = False
     numero_parte.save(update_fields=['activo', 'updated_at'])
-    messages.success(request, 'Numero de parte inactivado correctamente.')
+    messages.success(request, 'Número de parte inactivado correctamente.')
     return redirect('catalogos:numero_parte_detail', pk=numero_parte.pk)
 
 
@@ -314,7 +314,7 @@ def numero_parte_activar(request, pk):
     numero_parte = get_object_or_404(NumeroParte, pk=pk)
     numero_parte.activo = True
     numero_parte.save(update_fields=['activo', 'updated_at'])
-    messages.success(request, 'Numero de parte activado correctamente.')
+    messages.success(request, 'Número de parte activado correctamente.')
     return redirect('catalogos:numero_parte_detail', pk=numero_parte.pk)
 
 
@@ -334,13 +334,13 @@ def numero_parte_create(request):
 
     if request.method == 'POST' and form.is_valid():
         numero_parte = form.save()
-        messages.success(request, 'Numero de parte creado correctamente.')
+        messages.success(request, 'Número de parte creado correctamente.')
         return redirect('catalogos:numero_parte_detail', pk=numero_parte.pk)
 
     return render(
         request,
         'catalogos/numeroparte_form.html',
-        {'form': form, 'titulo': 'Nuevo numero de parte'},
+        {'form': form, 'titulo': 'Nuevo número de parte'},
     )
 
 
@@ -351,7 +351,7 @@ def numero_parte_update(request, pk):
 
     if request.method == 'POST' and form.is_valid():
         numero_parte = form.save()
-        messages.success(request, 'Numero de parte actualizado correctamente.')
+        messages.success(request, 'Número de parte actualizado correctamente.')
         return redirect('catalogos:numero_parte_detail', pk=numero_parte.pk)
 
     return render(
@@ -359,7 +359,7 @@ def numero_parte_update(request, pk):
         'catalogos/numeroparte_form.html',
         {
             'form': form,
-            'titulo': 'Editar numero de parte',
+            'titulo': 'Editar número de parte',
             'numero_parte': numero_parte,
         },
     )
@@ -436,13 +436,13 @@ def importar_numeros_parte(request):
 
     if request.method == 'POST' and request.POST.get('accion') == 'cancelar':
         session.pop(PREVIEW_NUMEROS_PARTE_SESSION_KEY, None)
-        messages.success(request, 'Importacion cancelada.')
+        messages.success(request, 'Importación cancelada.')
         return redirect('catalogos:importar_numeros_parte')
 
     if request.method == 'POST' and request.POST.get('accion') == 'confirmar':
         preview = session.get(PREVIEW_NUMEROS_PARTE_SESSION_KEY)
         if not preview:
-            messages.error(request, 'No hay una importacion pendiente por confirmar.')
+            messages.error(request, 'No hay una importación pendiente por confirmar.')
             return redirect('catalogos:importar_numeros_parte')
 
         archivo = SimpleNamespace(name=preview.get('archivo_nombre', ''))
@@ -464,7 +464,7 @@ def importar_numeros_parte(request):
                 archivo,
                 request.user,
             )
-            messages.error(request, 'La importacion fallo. Revisa el archivo e intenta de nuevo.')
+            messages.error(request, 'La importación falló. Revisa el archivo e intenta de nuevo.')
 
     elif request.method == 'POST' and form.is_valid():
         archivo = form.cleaned_data['archivo']
@@ -474,7 +474,7 @@ def importar_numeros_parte(request):
             if hasattr(session, 'modified'):
                 session.modified = True
         except Exception:
-            messages.error(request, 'No se pudo analizar el archivo. Revisa el CSV e intenta de nuevo.')
+            messages.error(request, 'No se pudo analizar el archivo. Revisa el CSV o XLSX e intenta de nuevo.')
 
     return render(
         request,
@@ -505,7 +505,7 @@ def importar_sat(request):
                 archivo,
                 request.user,
             )
-            messages.error(request, 'La importacion fallo. Revisa el archivo e intenta de nuevo.')
+            messages.error(request, 'La importación falló. Revisa el archivo e intenta de nuevo.')
 
     return render(
         request,
@@ -518,7 +518,7 @@ def _agregar_mensaje_resultado(request, resultado):
     messages.success(
         request,
         (
-            f"Importacion terminada. Procesadas: {resultado['procesadas']}, "
+            f"Importación terminada. Procesadas: {resultado['procesadas']}, "
             f"creadas: {resultado['creadas']}, actualizadas: {resultado['actualizadas']}, "
             f"errores: {len(resultado['errores'])}."
         ),
@@ -560,7 +560,7 @@ def _registrar_carga_fallida(tipo_catalogo, archivo, usuario):
         total_actualizadas=0,
         total_errores=1,
         estado=CargaCatalogo.ESTADO_FALLIDA,
-        errores_resumen='Error general durante importacion.',
+        errores_resumen='Error general durante importación.',
     )
 
 
