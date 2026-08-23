@@ -108,7 +108,7 @@ def _render_base_con_usuario(request, usuario):
 class FakeQuerySet(list):
     def __init__(self, items, filtered_items=None):
         super().__init__(items)
-        self.filtered_items = filtered_items or []
+        self.filtered_items = list(items) if filtered_items is None else filtered_items
         self.filter_called = False
 
     def all(self):
@@ -122,7 +122,7 @@ class FakeQuerySet(list):
 
     def filter(self, *args, **kwargs):
         self.filter_called = True
-        items = self.filtered_items or list(self)
+        items = self.filtered_items
         return FakeQuerySet(items, filtered_items=items)
 
 
@@ -788,6 +788,54 @@ class CatalogosViewsTests(SimpleTestCase):
         self.assertTrue(queryset.filter_called)
         self.assertIn('ABC123', contenido)
         self.assertNotIn('XYZ999', contenido)
+
+    def test_listado_muestra_filtros_activos(self):
+        request = self.factory.get(
+            reverse('catalogos:numeros_parte_list'),
+            {'q': 'ABC', 'modelo': 'MOD', 'fraccion': '9026', 'estado': 'todos'},
+        )
+        request.user = _user(True)
+        queryset = FakeQuerySet([], filtered_items=[])
+
+        with patch('apps.catalogos.views.NumeroParte.objects', queryset):
+            response = numeros_parte_list(request)
+
+        contenido = response.content.decode('utf-8')
+        self.assertIn('Filtros activos:', contenido)
+        self.assertIn('Búsqueda: ABC', contenido)
+        self.assertIn('Modelo: MOD', contenido)
+        self.assertIn('Fracción: 9026', contenido)
+        self.assertIn('Estado: Todos', contenido)
+
+    def test_listado_distingue_sin_resultados_de_catalogo_vacio(self):
+        request = self.factory.get(
+            reverse('catalogos:numeros_parte_list'), {'q': 'NO-EXISTE'}
+        )
+        request.user = _user(True)
+        item = SimpleNamespace(
+            pk=1,
+            numero_parte='NP-001',
+            modelo='MOD',
+            descripcion='Descripción',
+            fraccion='9026',
+            updated_at=None,
+        )
+        queryset = FakeQuerySet([item], filtered_items=[])
+
+        with patch('apps.catalogos.views.NumeroParte.objects', queryset):
+            response = numeros_parte_list(request)
+
+        contenido = response.content.decode('utf-8')
+        self.assertIn('No encontramos números de parte con los filtros aplicados.', contenido)
+        self.assertNotIn('Aún no hay números de parte registrados.', contenido)
+
+        empty_request = self.factory.get(reverse('catalogos:numeros_parte_list'))
+        empty_request.user = _user(True)
+        with patch('apps.catalogos.views.NumeroParte.objects', FakeQuerySet([])):
+            response = numeros_parte_list(empty_request)
+
+        contenido = response.content.decode('utf-8')
+        self.assertIn('Aún no hay números de parte registrados.', contenido)
 
     def test_filtros_numeros_parte_modelo_y_fraccion_son_combinables(self):
         request = self.factory.get(

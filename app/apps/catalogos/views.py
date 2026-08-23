@@ -256,6 +256,12 @@ def exportar_cargas_csv(request):
 
 @permission_required('catalogos.view_numeroparte')
 def numeros_parte_list(request):
+    todos_los_numeros = NumeroParte.objects.all()
+    try:
+        total_numero_partes = todos_los_numeros.count()
+    except (AttributeError, TypeError):
+        total_numero_partes = len(todos_los_numeros)
+
     queryset, q, modelo, fraccion, estado = _numeros_parte_filtrados(request)
 
     page_obj = Paginator(queryset, 25).get_page(request.GET.get('page'))
@@ -271,6 +277,7 @@ def numeros_parte_list(request):
             'fraccion': fraccion,
             'estado': estado,
             'querystring': filtros.urlencode(),
+            'total_numero_partes': total_numero_partes,
         },
     )
 

@@ -58,6 +58,16 @@
     </form>
 </div>
 
+{% if q or modelo or fraccion or estado != "activos" %}
+    <div class="alert" role="status">
+        <strong>Filtros activos:</strong>
+        {% if q %}<span class="badge">Búsqueda: {{ q }}</span>{% endif %}
+        {% if modelo %}<span class="badge">Modelo: {{ modelo }}</span>{% endif %}
+        {% if fraccion %}<span class="badge">Fracción: {{ fraccion }}</span>{% endif %}
+        {% if estado != "activos" %}<span class="badge">Estado: {{ estado|capfirst }}</span>{% endif %}
+    </div>
+{% endif %}
+
 <div class="card">
     <div class="table-wrap">
         <table class="data-table">
@@ -118,7 +128,28 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7">No hay registros.</td>
+                        <td colspan="7">
+                            <div class="alert" role="status">
+                                {% if total_numero_partes %}
+                                    <strong>No encontramos números de parte con los filtros aplicados.</strong>
+                                    <p class="muted">Prueba con otros criterios o limpia los filtros para consultar el catálogo.</p>
+                                {% else %}
+                                    <strong>Aún no hay números de parte registrados.</strong>
+                                    <p class="muted">Puedes crear el primer registro o importar un archivo CSV/XLSX.</p>
+                                {% endif %}
+                                <div class="page-actions">
+                                    {% if q or modelo or fraccion or estado != "activos" %}
+                                        <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Limpiar filtros</a>
+                                    {% endif %}
+                                    {% if perms.catalogos.add_numeroparte %}
+                                        <a class="btn btn-primary" href="{% url 'catalogos:numero_parte_create' %}">Nuevo número de parte</a>
+                                    {% endif %}
+                                    {% if perms.catalogos.puede_importar_numeroparte %}
+                                        <a class="btn btn-secondary" href="{% url 'catalogos:importar_numeros_parte' %}">Importar CSV/XLSX</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
