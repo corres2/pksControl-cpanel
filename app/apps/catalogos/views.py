@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -315,6 +315,8 @@ def numero_parte_inactivar(request, pk):
     numero_parte = get_object_or_404(NumeroParte, pk=pk)
     numero_parte.activo = False
     numero_parte.save(update_fields=['activo', 'updated_at'])
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'ok': True, 'activo': False, 'estado': 'Inactivo'})
     messages.success(request, 'Número de parte inactivado correctamente.')
     return redirect('catalogos:numero_parte_detail', pk=numero_parte.pk)
 
@@ -325,6 +327,8 @@ def numero_parte_activar(request, pk):
     numero_parte = get_object_or_404(NumeroParte, pk=pk)
     numero_parte.activo = True
     numero_parte.save(update_fields=['activo', 'updated_at'])
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'ok': True, 'activo': True, 'estado': 'Activo'})
     messages.success(request, 'Número de parte activado correctamente.')
     return redirect('catalogos:numero_parte_detail', pk=numero_parte.pk)
 

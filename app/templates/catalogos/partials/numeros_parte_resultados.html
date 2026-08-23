@@ -27,9 +27,9 @@
                         <td>{{ item.fraccion|default:"" }}</td>
                         <td>
                             {% if item.activo %}
-                                <span class="badge badge-ok">Activo</span>
+                                <span class="badge badge-ok" data-estado-badge>Activo</span>
                             {% else %}
-                                <span class="badge badge-warning">Inactivo</span>
+                                <span class="badge badge-warning" data-estado-badge>Inactivo</span>
                             {% endif %}
                         </td>
                         <td>{{ item.updated_at|date:"Y-m-d H:i" }}</td>
@@ -38,14 +38,14 @@
                                 {% if perms.catalogos.change_numeroparte %}
                                     <a class="btn btn-secondary" href="{% url 'catalogos:numero_parte_update' item.pk %}">Editar</a>
                                     {% if item.activo %}
-                                        <form method="post" action="{% url 'catalogos:numero_parte_inactivar' item.pk %}">
+                                        <form method="post" action="{% url 'catalogos:numero_parte_inactivar' item.pk %}" data-ajax-estado data-activar-url="{% url 'catalogos:numero_parte_activar' item.pk %}" data-inactivar-url="{% url 'catalogos:numero_parte_inactivar' item.pk %}">
                                             {% csrf_token %}
-                                            <button class="btn btn-danger-light" type="submit">Inactivar</button>
+                                            <button class="btn btn-danger-light" type="submit" data-estado-boton>Inactivar</button>
                                         </form>
                                     {% else %}
-                                        <form method="post" action="{% url 'catalogos:numero_parte_activar' item.pk %}">
+                                        <form method="post" action="{% url 'catalogos:numero_parte_activar' item.pk %}" data-ajax-estado data-activar-url="{% url 'catalogos:numero_parte_activar' item.pk %}" data-inactivar-url="{% url 'catalogos:numero_parte_inactivar' item.pk %}">
                                             {% csrf_token %}
-                                            <button class="btn btn-secondary" type="submit">Activar</button>
+                                            <button class="btn btn-secondary" type="submit" data-estado-boton>Activar</button>
                                         </form>
                                     {% endif %}
                                 {% endif %}

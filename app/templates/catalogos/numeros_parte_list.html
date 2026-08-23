@@ -143,6 +143,64 @@
         cargarResultados(url, true);
     });
 
+    resultados.addEventListener('submit', async function (evento) {
+        const formEstado = evento.target.closest('[data-ajax-estado]');
+        if (!formEstado || formEstado.dataset.procesando === 'true') return;
+        evento.preventDefault();
+        const boton = formEstado.querySelector('[data-estado-boton]');
+        const fila = formEstado.closest('tr');
+        const inactivar = boton && boton.textContent.trim() === 'Inactivar';
+        if (!boton || !window.confirm((inactivar ? '¿Inactivar' : '¿Activar') + ' este número de parte?')) return;
+
+        formEstado.dataset.procesando = 'true';
+        const textoOriginal = boton.textContent;
+        boton.disabled = true;
+        boton.textContent = 'Procesando...';
+        if (fila) fila.setAttribute('aria-busy', 'true');
+        const existente = formEstado.parentElement.querySelector('[data-estado-error]');
+        if (existente) existente.remove();
+
+        try {
+            const respuesta = await fetch(formEstado.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'X-CSRFToken': formEstado.querySelector('[name="csrfmiddlewaretoken"]').value
+                },
+                credentials: 'same-origin'
+            });
+            const tipo = respuesta.headers.get('content-type') || '';
+            if (!respuesta.ok || !tipo.includes('application/json') || respuesta.redirected) {
+                throw new Error('La sesión puede haber expirado. Recarga la página e inicia sesión nuevamente.');
+            }
+            const datos = await respuesta.json();
+            if (!datos.ok) throw new Error('No se pudo actualizar el estado. Intenta nuevamente.');
+            const badge = fila && fila.querySelector('[data-estado-badge]');
+            if (badge) {
+                badge.textContent = datos.estado;
+                badge.classList.toggle('badge-ok', datos.activo);
+                badge.classList.toggle('badge-warning', !datos.activo);
+            }
+            boton.textContent = datos.activo ? 'Inactivar' : 'Activar';
+            boton.classList.toggle('btn-danger-light', datos.activo);
+            boton.classList.toggle('btn-secondary', !datos.activo);
+            formEstado.action = datos.activo ? formEstado.dataset.inactivarUrl : formEstado.dataset.activarUrl;
+        } catch (error) {
+            boton.textContent = textoOriginal;
+            const mensaje = document.createElement('div');
+            mensaje.className = 'alert alert-error';
+            mensaje.setAttribute('role', 'alert');
+            mensaje.dataset.estadoError = 'true';
+            mensaje.textContent = error.message || 'No se pudo actualizar el estado. Intenta nuevamente.';
+            formEstado.parentElement.appendChild(mensaje);
+        } finally {
+            formEstado.dataset.procesando = 'false';
+            boton.disabled = false;
+            if (fila) fila.removeAttribute('aria-busy');
+        }
+    });
+
     window.addEventListener('popstate', function () {
         cargarResultados(new URL(window.location.href), false);
     });

@@ -580,6 +580,47 @@ class NumeroParteManualViewsTests(TestCase):
         numero_parte.refresh_from_db()
         self.assertTrue(numero_parte.activo)
 
+    def test_inactivar_ajax_devuelve_json_y_cambia_estado(self):
+        numero_parte = self._crear_numero_parte()
+        self._grant('change_numeroparte')
+        self._login()
+
+        response = self.client.post(
+            reverse('catalogos:numero_parte_inactivar', kwargs={'pk': numero_parte.pk}),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'ok': True, 'activo': False, 'estado': 'Inactivo'})
+        numero_parte.refresh_from_db()
+        self.assertFalse(numero_parte.activo)
+
+    def test_activar_ajax_devuelve_json_y_cambia_estado(self):
+        numero_parte = self._crear_numero_parte(activo=False)
+        self._grant('change_numeroparte')
+        self._login()
+
+        response = self.client.post(
+            reverse('catalogos:numero_parte_activar', kwargs={'pk': numero_parte.pk}),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'ok': True, 'activo': True, 'estado': 'Activo'})
+        numero_parte.refresh_from_db()
+        self.assertTrue(numero_parte.activo)
+
+    def test_activar_inactivar_requiere_post(self):
+        numero_parte = self._crear_numero_parte()
+        self._grant('change_numeroparte')
+        self._login()
+
+        response = self.client.get(
+            reverse('catalogos:numero_parte_inactivar', kwargs={'pk': numero_parte.pk})
+        )
+
+        self.assertEqual(response.status_code, 405)
+
     def test_usuario_sin_change_no_puede_inactivar_ni_activar(self):
         numero_parte = self._crear_numero_parte()
         self._login()
