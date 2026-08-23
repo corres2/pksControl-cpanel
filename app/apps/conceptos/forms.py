@@ -30,10 +30,10 @@ class ConceptoForm(forms.ModelForm):
             'orden',
         )
         labels = {
-            'numero_parte': 'Numero de parte',
+            'numero_parte': 'Número de parte',
             'serie': 'Serie',
             'modelo': 'Modelo',
-            'descripcion': 'Descripcion',
+            'descripcion': 'Descripción',
             'cantidad': 'Cantidad',
             'precio_unitario': 'Precio unitario',
             'orden': 'Orden',

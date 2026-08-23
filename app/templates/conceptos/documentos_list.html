@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Conceptos</h1>
-        <p class="muted">Documentos operativos de captura de conceptos.</p>
+        <p class="muted">Consulta y administra tus documentos de captura de conceptos.</p>
     </div>
     <div class="page-actions">
         {% if perms.conceptos.add_documentoconceptos %}
@@ -50,7 +50,17 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6">No hay documentos.</td>
+                        <td colspan="6">
+                            <div class="alert" role="status">
+                                <strong>Aún no hay documentos de conceptos registrados.</strong>
+                                <p class="muted">Crea un documento para comenzar a capturar conceptos.</p>
+                                {% if perms.conceptos.add_documentoconceptos %}
+                                    <div class="page-actions">
+                                        <a class="btn btn-primary" href="{% url 'conceptos:documento_create' %}">Nuevo documento</a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>

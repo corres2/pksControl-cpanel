@@ -9,7 +9,7 @@
         <p class="muted">Detalle de documento de conceptos.</p>
     </div>
     <div class="page-actions">
-        <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Volver</a>
+        <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Volver al listado</a>
         <a class="btn btn-secondary" href="{% url 'conceptos:documento_exportar_word' documento.pk %}">Exportar Word</a>
         {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
             <a class="btn btn-secondary" href="{% url 'conceptos:documento_update' documento.pk %}">Editar</a>
@@ -19,7 +19,7 @@
         {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos %}
             <form method="post" action="{% url 'conceptos:documento_confirmar' documento.pk %}">
                 {% csrf_token %}
-                <button class="btn btn-primary" type="submit">Confirmar</button>
+                <button class="btn btn-primary" type="submit">Confirmar documento</button>
             </form>
         {% endif %}
         {% if documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
@@ -134,7 +134,18 @@
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="9">No hay conceptos.</td>
+                        <td colspan="9">
+                            <div class="alert" role="status">
+                                <strong>Aún no hay conceptos en este documento.</strong>
+                                {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
+                                    <p class="muted">Agrega un concepto manualmente o importa un archivo CSV o XLSX.</p>
+                                    <div class="page-actions">
+                                        <a class="btn btn-primary" href="{% url 'conceptos:concepto_create' documento.pk %}">Agregar concepto</a>
+                                        <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_importar' documento.pk %}">Importar conceptos</a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>

@@ -608,7 +608,7 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            'No se encontro numero de parte activo; puedes capturar los datos manualmente.',
+            'No se encontró número de parte activo; puedes capturar los datos manualmente.',
         )
         self.assertContains(response, 'Manual')
         self.assertFalse(Concepto.objects.exists())
@@ -637,7 +637,7 @@ class ConceptosViewsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'El numero de parte existe pero esta inactivo.')
+        self.assertContains(response, 'El número de parte existe pero está inactivo.')
         self.assertNotContains(response, 'value="MOD-Z"')
         self.assertNotContains(response, 'Sensor inactivo')
 
@@ -894,7 +894,7 @@ class ConceptosViewsTests(TestCase):
             },
         )
 
-        self.assertContains(response, 'Captura numero de parte o serie para buscar historial.')
+        self.assertContains(response, 'Captura número de parte o serie para buscar historial.')
 
     def test_usar_sugerencia_precarga_datos_sin_reemplazar_cantidad(self):
         documento = self._crear_documento()
@@ -986,7 +986,7 @@ class ConceptosViewsTests(TestCase):
 
         self.assertContains(
             response,
-            'No se encontro numero de parte activo; puedes capturar los datos manualmente.',
+            'No se encontró número de parte activo; puedes capturar los datos manualmente.',
         )
         self.assertNotContains(response, 'Descripcion solo en historial')
 
@@ -1044,7 +1044,7 @@ class ConceptosViewsTests(TestCase):
         self.assertContains(response, 'NP-PATRON')
         self.assertContains(response, 'Descripcion patron')
         self.assertContains(response, 'Patron')
-        self.assertContains(response, 'Prefix: PS-')
+        self.assertContains(response, 'Prefijo: PS-')
         self.assertContains(response, 'Muestra: 4')
 
     def test_lupa_numero_parte_usa_patron_si_no_hay_catalogo(self):
@@ -1193,7 +1193,7 @@ class ConceptosViewsTests(TestCase):
         )
 
         self.assertContains(response, 'Patron')
-        self.assertContains(response, 'Prefix: EMP')
+        self.assertContains(response, 'Prefijo: EMP')
 
     def test_usar_patron_no_reemplaza_cantidad_precio_ni_serie(self):
         documento = self._crear_documento()
@@ -1313,7 +1313,7 @@ class ConceptosViewsTests(TestCase):
 
         self.assertContains(
             response,
-            'Captura numero de parte o serie para buscar historial.',
+            'Captura número de parte o serie para buscar historial.',
         )
         self.assertNotContains(response, 'Patron sin serie')
 

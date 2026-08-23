@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Importar conceptos</h1>
-        <p class="muted">{{ documento.folio }} · Sube un archivo CSV o XLSX y confirma antes de guardar.</p>
+        <p class="muted">{{ documento.folio }} · Carga conceptos desde un archivo CSV o XLSX y revisa el preview antes de confirmar.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver</a>
@@ -14,7 +14,7 @@
 </div>
 
 <div class="card">
-    <p class="muted">Encabezados esperados: numero_parte, serie, modelo, descripcion, cantidad, precio_unitario.</p>
+    <p class="muted">Columnas esperadas: <code>numero_parte</code>, <code>serie</code>, <code>modelo</code>, <code>descripcion</code>, <code>cantidad</code> y <code>precio_unitario</code>.</p>
     <form class="form-grid" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="form-field">

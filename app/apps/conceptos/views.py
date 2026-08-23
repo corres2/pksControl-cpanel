@@ -139,10 +139,10 @@ def conceptos_importar_confirmar(request, pk):
     session_key = _importacion_session_key(documento)
     preview = request.session.get(session_key)
     if not preview:
-        messages.error(request, 'No hay una importacion pendiente por confirmar.')
+        messages.error(request, 'No hay una importación pendiente por confirmar.')
         return redirect('conceptos:conceptos_importar', pk=documento.pk)
     if not preview['resumen']['validas']:
-        messages.error(request, 'No hay filas validas para importar.')
+        messages.error(request, 'No hay filas válidas para importar.')
         return redirect('conceptos:conceptos_importar', pk=documento.pk)
 
     usar_para_biblioteca = request.POST.get('usar_para_biblioteca') == '1'
@@ -390,11 +390,11 @@ def _buscar_numero_parte_en_form(request, instance=None, documento=None):
     if not encontrado and datos.get('numero_parte'):
         sugerencias = _buscar_sugerencias_patron_por_numero_parte(datos['numero_parte'])
         if sugerencias:
-            messages.info(request, 'Selecciona una sugerencia de Patron para precargar datos.')
+            messages.info(request, 'Selecciona una sugerencia de patrón para precargar datos.')
         else:
             messages.warning(
                 request,
-                'No se encontro numero de parte activo; puedes capturar los datos manualmente.',
+                'No se encontró número de parte activo; puedes capturar los datos manualmente.',
             )
 
     return ConceptoForm(initial=datos, instance=instance, documento=documento), sugerencias
@@ -404,11 +404,11 @@ def _buscar_serie_en_form(request, instance=None, documento=None):
     datos = _datos_concepto_desde_post(request)
     sugerencias = []
     if not datos.get('serie'):
-        messages.warning(request, 'Captura una serie para buscar patron.')
+        messages.warning(request, 'Captura una serie para buscar patrón.')
     else:
         sugerencias = _buscar_sugerencias_patron_por_serie(datos['serie'])
         if sugerencias:
-            messages.info(request, 'Selecciona una sugerencia de Patron para precargar datos.')
+            messages.info(request, 'Selecciona una sugerencia de patrón para precargar datos.')
         else:
             messages.warning(request, 'No se encontraron patrones activos para la serie.')
 
@@ -428,7 +428,7 @@ def _buscar_historial_en_form(request, instance=None, documento=None):
             'No se encontraron coincidencias en historial confirmado.',
         )
     else:
-        messages.warning(request, 'Captura numero de parte o serie para buscar historial.')
+        messages.warning(request, 'Captura número de parte o serie para buscar historial.')
 
     return ConceptoForm(initial=datos, instance=instance, documento=documento), sugerencias
 
@@ -480,7 +480,7 @@ def _aplicar_numero_parte_activo(request, datos, avisar_sin_numero=False):
     if not parte.activo:
         messages.warning(
             request,
-            'El numero de parte existe pero esta inactivo.',
+            'El número de parte existe pero está inactivo.',
         )
         return False
 

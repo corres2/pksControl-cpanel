@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">{{ titulo }}</h1>
-        <p class="muted">Captura general del documento operativo.</p>
+        <p class="muted">Registra las observaciones generales del documento operativo.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Volver</a>
@@ -27,7 +27,7 @@
         </div>
 
         <div class="page-actions">
-            <button class="btn btn-primary" type="submit">Guardar</button>
+            <button class="btn btn-primary" type="submit">Guardar documento</button>
             <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Cancelar</a>
         </div>
     </form>
