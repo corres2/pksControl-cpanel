@@ -42,6 +42,10 @@ Ejemplo para conceptos: “Documentos de conceptos”, con estado visible (“Bo
 - Separar “Guardar” como acción primaria y “Cancelar”/“Volver” como secundaria.
 - No usar un botón genérico como “Enviar”.
 
+### Validación visible
+
+No mostrar errores de campos obligatorios antes de que la persona interactúe con el formulario. Los errores deben aparecer después de un submit o de un preview fallido, junto al campo afectado y, cuando aplique, en un resumen superior. Al corregir el dato, el mensaje debe desaparecer o actualizarse en la siguiente validación.
+
 Para un concepto, “Número de parte”, “Serie”, “Modelo”, “Descripción”, “Cantidad” y “Precio unitario” deben mantener el orden de captura habitual. Las acciones de búsqueda o sugerencia deben explicar qué datos precargarán y no reemplazar silenciosamente cantidad, precio o serie.
 
 ## 3. Importaciones CSV/XLSX
@@ -52,11 +56,13 @@ Para números de parte, documentar las columnas por posición: A `numero_parte` 
 
 El flujo recomendado es: seleccionar archivo → generar preview → revisar resumen y errores → confirmar o cancelar → mostrar resultado y acciones posteriores. La confirmación debe ser una acción explícita y no ejecutarse al cargar el archivo.
 
+El preview debe explicar qué se importará: solo se confirmarán las filas válidas. Si hay errores parciales, mostrar un mensaje como “Se importarán 3 filas válidas; 2 filas requieren corrección” y permitir distinguir los registros válidos de los rechazados.
+
 ## 4. Preview
 
 El preview debe aparecer después del formulario y recibir foco o desplazamiento accesible cuando se genere. Puede usar un encabezado con el nombre del archivo, un `card-grid` de métricas y una tabla de muestra.
 
-Para números de parte, mostrar como mínimo: filas válidas, registros que se crearían, registros que se actualizarían y errores. Ejemplo: “3 filas válidas · 2 nuevas · 1 actualización · 0 errores”. Indicar “Listo para confirmar” únicamente cuando no haya errores bloqueantes.
+Para números de parte, mostrar como mínimo: filas válidas, registros que se crearían, registros que se actualizarían y errores. Ejemplo: “3 filas válidas · 2 nuevas · 1 actualización · 0 errores”. Indicar “Listo para confirmar” únicamente cuando no haya errores bloqueantes. Si hay errores parciales, usar “Revisa los errores; solo se importarán las filas válidas”.
 
 Para conceptos, mostrar filas totales, válidas, con sugerencia, duplicadas, incompletas y con error. Cada fila debe mostrar número de fila, datos relevantes, estado, mensaje y total cuando aplique.
 
@@ -64,7 +70,7 @@ Para conceptos, mostrar filas totales, válidas, con sugerencia, duplicadas, inc
 
 - Encabezados mínimos: “Fila” y “Error” o “Mensaje”.
 - Usar el número real de fila del archivo, incluyendo el encabezado cuando aplique.
-- Escribir causa y corrección: “Fila 7: falta `numero_parte`” es preferible a “Dato inválido”.
+- Escribir causa y corrección: “Fila 7: falta el número de parte” es preferible a “Dato inválido”. Reservar nombres técnicos como `numero_parte` para la documentación del formato, no para el mensaje principal al usuario.
 - Mantener visibles los primeros errores y comunicar si existe un límite de muestra.
 - No presentar una fila completamente vacía como error.
 - Diferenciar error de fila, advertencia de estado y error general de sistema.
@@ -73,8 +79,9 @@ Para conceptos, mostrar filas totales, válidas, con sugerencia, duplicadas, inc
 
 Los mensajes deben indicar qué ocurrió y qué puede hacer la persona después:
 
-- Éxito: “Importación confirmada: 2 creados y 1 actualizado. Ver listado”.
-- Éxito parcial: “Importación confirmada con 2 errores; revisa el detalle”.
+- Título de éxito total: “Importación completada”. Detalle: “2 números de parte creados y 1 actualizado”.
+- Título de éxito parcial: “Importación completada con observaciones”. Detalle: “Se importaron 3 filas válidas; revisa 2 errores”.
+- Fallo: “No se completó la importación”. Detalle: “Corrige el archivo e inténtalo de nuevo”.
 - Error de validación: “Corrige los errores del preview antes de confirmar”.
 - Error de formato: “Formato no soportado. Usa CSV o XLSX”.
 - Error de sistema: “No se pudo completar la operación. Revisa el log o contacta soporte”.
@@ -95,6 +102,8 @@ Los filtros deben tener etiquetas, valores conservados al paginar, botón “Bus
 
 La búsqueda general puede cubrir número de parte, modelo, descripción y fracción; los filtros específicos deben combinarse de forma acumulativa. Informar el contexto del resultado: “12 números de parte encontrados” o “No hay resultados para los filtros actuales”.
 
+En fases posteriores, los filtros activos deben permanecer visibles como criterios seleccionados, chips o un resumen equivalente. La persona debe poder identificar por qué un registro no aparece y limpiar cada criterio o todos a la vez.
+
 ## 9. Estados vacíos y sin resultados
 
 Un listado vacío debe explicar por qué y ofrecer una siguiente acción:
@@ -106,13 +115,28 @@ Un listado vacío debe explicar por qué y ofrecer una siguiente acción:
 
 No confundir ausencia de datos con error del sistema. Si una acción no está disponible por permisos, no mostrar un botón que terminará en error; mantener una navegación segura de regreso.
 
-## 10. Accesibilidad y navegación
+## 10. Estados de carga y espera
+
+Todo submit que pueda tardar debe mostrar un estado de carga local al bloque que se está procesando. Deshabilitar el botón mientras trabaja y cambiar temporalmente su texto:
+
+- “Generar preview” → “Generando preview...”
+- “Confirmar importación” → “Importando...”
+- “Guardar” → “Guardando...”
+- “Exportar” → “Exportando...”
+
+Esto evita doble click y doble envío. Mostrar “Procesando archivo, espera un momento.” en importaciones o procesos largos. No bloquear toda la pantalla si solo se procesa una sección; el loading debe pertenecer al formulario, preview o tabla correspondiente.
+
+Si ocurre un error, restaurar botones y textos originales, retirar el estado de espera y mostrar un mensaje accionable. La solución debe funcionar sin JavaScript: el servidor sigue validando y el formulario sigue siendo usable, aunque no haya indicador dinámico.
+
+## 11. Accesibilidad y navegación
 
 Los títulos deben seguir una jerarquía (`h1` y `h2`), los botones deben describir su acción y los errores deben conservar foco o anunciarse de forma accesible. Tras generar un preview o detectar errores, mover el foco al encabezado de esa sección sin impedir que la persona vuelva al formulario.
 
+Después de generar un preview, llevar el foco visual al resumen y, después de confirmar, al resultado final. Si falla la validación del archivo, conservar la posición y enfocar el campo de archivo o el mensaje asociado; no desplazar a la persona a un preview inexistente.
+
 En cambios futuros se recomienda usar un ancla o `id` estable para `preview`, `errores` y `resultado-importacion`, además de `role="alert"` para mensajes dinámicos. Las tablas deben conservar encabezados, contraste y lectura horizontal en pantallas pequeñas.
 
-## 11. Checklist antes de publicar una vista
+## 12. Checklist antes de publicar una vista
 
 - ¿El título describe la tarea y los textos usan acentos?
 - ¿La acción primaria es única, visible y específica?
@@ -122,6 +146,8 @@ En cambios futuros se recomienda usar un ancla o `id` estable para `preview`, `e
 - ¿La importación distingue formato, preview, confirmación y resultado?
 - ¿Los errores incluyen fila, causa y corrección?
 - ¿La navegación posterior permite continuar sin volver atrás manualmente?
+- ¿Los submits largos muestran loading, deshabilitan botones y evitan doble envío?
+- ¿Los errores aparecen después de interacción/submit y restauran controles si fallan?
 - ¿Se validó teclado, foco, lector de pantalla y vista móvil?
 
 ## Fases propuestas
