@@ -78,11 +78,11 @@ def _crear_o_actualizar_patron(
     elif sample_size >= min_series and len(numero_partes) > 1:
         motivo = 'misma serie o prefijo asociado a varios numero_parte'
         estado = PatronSerie.ESTADO_CONFLICTO
-    elif colision_prefijo:
-        motivo = 'colision de prefijo con datos distintos'
-        estado = PatronSerie.ESTADO_CONFLICTO
     elif sample_size >= min_series and _prefijo_tiene_conflicto(prefix, numero_parte):
         motivo = 'mismo prefijo asociado a varios numero_parte'
+        estado = PatronSerie.ESTADO_CONFLICTO
+    elif colision_prefijo:
+        motivo = 'colision de prefijo con datos distintos'
         estado = PatronSerie.ESTADO_CONFLICTO
     elif sample_size >= min_series:
         estado = PatronSerie.ESTADO_APROBADO
