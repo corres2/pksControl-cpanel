@@ -247,6 +247,39 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
         self.assertIn('numero_parte', resultado['errores'][0]['error'])
         manager.update_or_create.assert_not_called()
 
+    def test_analiza_xlsx_ignora_filas_completamente_vacias(self):
+        archivo = _xlsx([
+            ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
+            ['XLSX-001', 'MOD-X', 'Descripcion XLSX', '1234.56.78'],
+            [None, None, None, None],
+            ['', '', '', ''],
+        ])
+
+        with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
+            manager.filter.return_value.values_list.return_value = []
+            resultado = analizar_numeros_parte_csv(archivo)
+
+        self.assertEqual(resultado['filas_validas'], 1)
+        self.assertEqual(resultado['errores'], [])
+        manager.filter.assert_called_once()
+
+    def test_analiza_csv_ignora_filas_completamente_vacias(self):
+        archivo = _csv('ABC123,MOD-A,Descripcion,\n,,,\n\n')
+
+        with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
+            manager.filter.return_value.values_list.return_value = []
+            resultado = analizar_numeros_parte_csv(archivo)
+
+        self.assertEqual(resultado['filas_validas'], 1)
+        self.assertEqual(resultado['errores'], [])
+
+    def test_fila_parcial_sin_numero_parte_sigue_generando_error(self):
+        resultado = analizar_numeros_parte_csv(_csv(',MOD-A,Descripcion,\n'))
+
+        self.assertEqual(resultado['filas_validas'], 0)
+        self.assertEqual(resultado['errores'][0]['fila'], 1)
+        self.assertIn('numero_parte', resultado['errores'][0]['error'])
+
 
 class ImportarClavesSATCSVTests(SimpleTestCase):
     def test_importa_sat_ignorando_metadatos(self):

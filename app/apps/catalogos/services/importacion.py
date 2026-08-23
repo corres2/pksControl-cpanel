@@ -1,4 +1,5 @@
 import csv
+import csv
 import re
 import unicodedata
 from datetime import datetime
@@ -35,6 +36,8 @@ def analizar_numeros_parte_csv(archivo, limite=MAX_FILAS_NUMEROS_PARTE):
         numero_parte, modelo, descripcion, fraccion = valores
 
         if fila_numero == 1 and _parece_encabezado_numero_parte(numero_parte):
+            continue
+        if not any(valores):
             continue
 
         if len(preview['filas']) + len(preview['errores']) >= limite:
