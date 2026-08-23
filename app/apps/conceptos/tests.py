@@ -705,7 +705,6 @@ class ConceptosViewsTests(TestCase):
             response,
             'No se encontró número de parte activo; puedes capturar los datos manualmente.',
         )
-        self.assertContains(response, 'Lista / Válida')
         self.assertFalse(Concepto.objects.exists())
 
     def test_numero_parte_inactivo_no_se_usa_como_sugerencia_valida(self):
@@ -1449,7 +1448,7 @@ class ConceptosViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Preview')
-        self.assertContains(response, 'Manual')
+        self.assertContains(response, 'Lista / Válida')
         self.assertNotContains(response, 'Usar filas confirmadas para alimentar biblioteca')
         self.assertFalse(Concepto.objects.filter(documento=documento).exists())
 
@@ -1471,6 +1470,28 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'NP-XLSX')
         self.assertContains(response, 'Descripcion XLSX')
+
+    def test_importacion_csv_mapea_columnas_por_nombre_y_no_por_posicion(self):
+        documento = self._crear_documento()
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.post(
+            reverse('conceptos:conceptos_importar', kwargs={'pk': documento.pk}),
+            {
+                'archivo': self._csv_upload(
+                    'precio_unitario,descripción,numero_parte,serie,cantidad,modelo\n'
+                    '12.50,Descripcion por nombre,NP-NOMBRE,SER-NOMBRE,2,MOD-NOMBRE\n'
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'NP-NOMBRE')
+        self.assertContains(response, 'SER-NOMBRE')
+        self.assertContains(response, 'MOD-NOMBRE')
+        self.assertContains(response, 'Descripcion por nombre')
+        self.assertContains(response, '12.50')
 
     def test_cancelar_importacion_limpia_preview_sin_crear_conceptos(self):
         documento = self._crear_documento()
@@ -1740,6 +1761,22 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(Concepto.objects.filter(documento=documento).count(), 1)
         documento.refresh_from_db()
         self.assertEqual(documento.total, Decimal('10.000000'))
+
+    def test_detalle_muestra_orden_consecutivo_independiente_del_valor_interno(self):
+        documento = self._crear_documento()
+        self._crear_concepto(documento, 'NP-ORD-1', 2)
+        self._crear_concepto(documento, 'NP-ORD-2', 3)
+        self._grant('view_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:documento_detail', kwargs={'pk': documento.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        contenido = response.content.decode()
+        self.assertRegex(contenido, r'<td class="js-orden">\s*1\s*</td>')
+        self.assertRegex(contenido, r'<td class="js-orden">\s*2\s*</td>')
 
     def test_importacion_crea_conceptos_sin_historial_mientras_factura_sigue_borrador(self):
         documento = self._crear_documento()

@@ -1,6 +1,7 @@
 import csv
 import io
 import re
+import unicodedata
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import Q
@@ -104,6 +105,11 @@ def _leer_xlsx(archivo):
 
 def _normalizar_header(valor):
     valor = str(valor or '').strip().lower().replace('\ufeff', '')
+    valor = ''.join(
+        caracter
+        for caracter in unicodedata.normalize('NFKD', valor)
+        if not unicodedata.combining(caracter)
+    )
     return re.sub(r'\s+', '_', valor)
 
 

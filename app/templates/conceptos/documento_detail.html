@@ -161,7 +161,7 @@
                     <tr data-concepto-id="{{ concepto.pk }}"{% if documento.es_borrador and perms.conceptos.change_documentoconceptos %} draggable="true"{% endif %}>
                         <td class="js-orden">
                             {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}<span class="drag-handle" title="Arrastrar para reordenar" aria-hidden="true">↕</span>{% endif %}
-                            {{ concepto.orden }}
+                            {{ forloop.counter }}
                         </td>
                         <td>{{ concepto.numero_parte }}</td>
                         <td>{{ concepto.serie }}</td>
