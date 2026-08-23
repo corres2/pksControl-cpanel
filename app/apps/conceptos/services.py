@@ -21,6 +21,9 @@ def analizar_historial_para_propuestas(min_series=MIN_SERIES_UNICAS, min_prefix_
     ).filter(
         Q(documento__isnull=True)
         | Q(documento__status=DocumentoConceptos.STATUS_CONFIRMADO),
+    ).filter(
+        Q(concepto__isnull=True)
+        | Q(concepto__documento__status=DocumentoConceptos.STATUS_CONFIRMADO),
     ).exclude(
         serie='',
     ).exclude(
@@ -31,34 +34,63 @@ def analizar_historial_para_propuestas(min_series=MIN_SERIES_UNICAS, min_prefix_
         firma = _firma_evidencia(evidencia)
         grupos[_firma_key(firma)].append(evidencia)
 
-    colisiones_por_base = defaultdict(set)
+    prefijos_por_firma = {}
     for firma_key, elementos in grupos.items():
         prefijo = _prefijo_comun(
             sorted({normalizar_texto(item.serie) for item in elementos if item.serie})
         )
+        prefijos_por_firma[firma_key] = prefijo
+    numeros_por_prefijo = defaultdict(set)
+    for firma_key, prefijo in prefijos_por_firma.items():
         if len(prefijo) >= min_prefix_len:
-            colisiones_por_base[prefijo[:min_prefix_len]].add(firma_key)
+            numeros_por_prefijo[prefijo].add(firma_key[0])
 
     patrones = []
+    claves_vigentes = set()
     for firma_key, elementos in grupos.items():
         firma = _firma_desde_key(firma_key)
         prefijo = _prefijo_comun(
             sorted({normalizar_texto(item.serie) for item in elementos if item.serie})
         )
-        colision_prefijo = (
-            len(prefijo) >= min_prefix_len
-            and len(colisiones_por_base[prefijo[:min_prefix_len]]) > 1
+        colision_prefijo = any(
+            otra_firma != firma_key
+            and len(_prefijo_comun(sorted((prefijo, otro_prefijo)))) >= min_prefix_len
+            for otra_firma, otro_prefijo in prefijos_por_firma.items()
         )
+        conflicto_numero_parte = len(numeros_por_prefijo[prefijo]) > 1
         patron = _crear_o_actualizar_patron(
             firma,
             elementos,
             min_series,
             min_prefix_len,
             colision_prefijo=colision_prefijo,
+            conflicto_numero_parte=conflicto_numero_parte,
         )
         if patron:
             patrones.append(patron)
+            claves_vigentes.add(_clave_patron(patron))
+
+    _inactivar_patrones_sin_evidencia(claves_vigentes)
     return patrones
+
+
+def _clave_patron(patron):
+    firma = patron.firma_json or {}
+    return (
+        patron.prefix,
+        normalizar_texto(patron.numero_parte),
+        normalizar_texto(firma.get('modelo', patron.modelo)),
+        normalizar_texto(firma.get('descripcion', patron.descripcion)),
+    )
+
+
+def _inactivar_patrones_sin_evidencia(claves_vigentes):
+    for patron in PatronSerie.objects.exclude(estado=PatronSerie.ESTADO_RECHAZADO):
+        if _clave_patron(patron) in claves_vigentes:
+            continue
+        if patron.activo:
+            patron.activo = False
+            patron.save(update_fields=['activo', 'updated_at'])
 
 def _crear_o_actualizar_patron(
     firma,
@@ -66,6 +98,7 @@ def _crear_o_actualizar_patron(
     min_series,
     min_prefix_len,
     colision_prefijo=False,
+    conflicto_numero_parte=False,
 ):
     series_unicas = sorted({normalizar_texto(evidencia.serie) for evidencia in evidencias if evidencia.serie})
     numero_partes = sorted({normalizar_texto(evidencia.numero_parte) for evidencia in evidencias if evidencia.numero_parte})
@@ -83,6 +116,9 @@ def _crear_o_actualizar_patron(
         estado = PatronSerie.ESTADO_CONFLICTO
     elif sample_size >= min_series and len(numero_partes) > 1:
         motivo = 'misma serie o prefijo asociado a varios numero_parte'
+        estado = PatronSerie.ESTADO_CONFLICTO
+    elif sample_size >= min_series and conflicto_numero_parte:
+        motivo = 'mismo prefijo asociado a varios numero_parte'
         estado = PatronSerie.ESTADO_CONFLICTO
     elif sample_size >= min_series and _prefijo_tiene_conflicto(prefix, numero_parte):
         motivo = 'mismo prefijo asociado a varios numero_parte'
@@ -172,10 +208,14 @@ def _confidence(sample_size):
 def _prefijo_tiene_conflicto(prefix, numero_parte):
     return PatronSerie.objects.filter(
         prefix=prefix,
+        activo=True,
     ).exclude(
         numero_parte=numero_parte,
     ).exclude(
-        estado=PatronSerie.ESTADO_RECHAZADO,
+        estado__in=(
+            PatronSerie.ESTADO_RECHAZADO,
+            PatronSerie.ESTADO_CONFLICTO,
+        ),
     ).exists()
 
 

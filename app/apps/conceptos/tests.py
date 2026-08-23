@@ -212,8 +212,10 @@ class PatronSerieAprendizajeTests(TestCase):
         modelo='MOD-A',
         descripcion='Sensor',
         usar_para_biblioteca=True,
+        documento=None,
     ):
         return HistorialCoincidencia.objects.create(
+            documento=documento,
             serie=serie,
             numero_parte=numero_parte,
             modelo=modelo,
@@ -325,6 +327,32 @@ class PatronSerieAprendizajeTests(TestCase):
         self.assertTrue(all(patron.estado == PatronSerie.ESTADO_CONFLICTO for patron in patrones))
         self.assertTrue(all(not patron.activo for patron in patrones))
 
+    def test_prefijo_largo_no_colisiona_por_prefijo_corto_ajeno(self):
+        for serie in ('QI149471', 'QI149472', 'QI149473'):
+            self._evidencia(serie, numero_parte='NP-QI', modelo='MODELO-QI')
+        for serie in ('QI200001', 'QI200002', 'QI200003'):
+            self._evidencia(serie, numero_parte='NP-OTRO', modelo='MODELO-OTRO')
+
+        analizar_historial_para_propuestas()
+
+        patron = PatronSerie.objects.get(numero_parte='NP-QI')
+        self.assertEqual(patron.prefix, 'QI14947')
+        self.assertEqual(patron.estado, PatronSerie.ESTADO_APROBADO)
+        self.assertTrue(patron.activo)
+
+    def test_mismo_prefijo_significativo_con_modelo_distinto_es_conflicto(self):
+        for serie in ('AB-001', 'AB-002'):
+            self._evidencia(serie, numero_parte='NP-A', modelo='MODELO-A')
+        for serie in ('AB-003', 'AB-004'):
+            self._evidencia(serie, numero_parte='NP-A', modelo='MODELO-B')
+
+        analizar_historial_para_propuestas()
+
+        patrones = PatronSerie.objects.order_by('modelo')
+        self.assertEqual(patrones.count(), 2)
+        self.assertTrue(all(patron.estado == PatronSerie.ESTADO_CONFLICTO for patron in patrones))
+        self.assertTrue(all(not patron.activo for patron in patrones))
+
     def test_rutas_operativas_de_propuestas_historicas_retiradas(self):
         with self.assertRaises(NoReverseMatch):
             reverse('conceptos:propuestas_patron_list')
@@ -342,6 +370,53 @@ class PatronSerieAprendizajeTests(TestCase):
 
         self.assertEqual(propuestas, [])
         self.assertFalse(PatronSerie.objects.exists())
+
+    def test_no_usa_evidencia_de_documento_no_confirmado(self):
+        borrador = DocumentoConceptos.objects.create(status=DocumentoConceptos.STATUS_BORRADOR)
+        cancelado = DocumentoConceptos.objects.create(status=DocumentoConceptos.STATUS_CANCELADO)
+        self._evidencia('ABC001', documento=borrador)
+        self._evidencia('ABC002', documento=cancelado)
+        self._evidencia('ABC003', documento=borrador)
+
+        analizar_historial_para_propuestas()
+
+        self.assertFalse(PatronSerie.objects.exists())
+
+    def test_modelo_es_parte_de_la_firma_del_patron(self):
+        self._evidencia('ABC001', modelo='MODELO-A')
+        self._evidencia('ABC002', modelo='MODELO-A')
+        self._evidencia('ABC003', modelo='MODELO-A')
+
+        analizar_historial_para_propuestas()
+
+        patron = PatronSerie.objects.get()
+        self.assertEqual(patron.modelo, 'MODELO-A')
+        self.assertEqual(patron.firma_json['modelo'], 'MODELO-A')
+
+    def test_patron_viejo_sin_evidencia_vigente_se_inactiva(self):
+        PatronSerie.objects.create(
+            prefix='ABC',
+            numero_parte='NP-001',
+            modelo='MODELO-VIEJO',
+            descripcion='Sensor viejo',
+            firma_json={
+                'numero_parte': 'NP-001',
+                'modelo': 'MODELO-VIEJO',
+                'descripcion': 'SENSOR VIEJO',
+            },
+            activo=True,
+            estado=PatronSerie.ESTADO_APROBADO,
+        )
+        self._evidencia('ABC001', modelo='MODELO-NUEVO')
+        self._evidencia('ABC002', modelo='MODELO-NUEVO')
+        self._evidencia('ABC003', modelo='MODELO-NUEVO')
+
+        analizar_historial_para_propuestas()
+
+        viejo = PatronSerie.objects.get(modelo='MODELO-VIEJO')
+        nuevo = PatronSerie.objects.get(modelo='MODELO-NUEVO')
+        self.assertFalse(viejo.activo)
+        self.assertTrue(nuevo.activo)
 
 
 class ConceptosViewsTests(TestCase):
