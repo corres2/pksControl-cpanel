@@ -150,6 +150,22 @@ Patrones por interacción:
 
 Evitar JavaScript duplicado por módulo. Preferir helpers y scripts reutilizables, y conectar botones, formularios y bloques mediante atributos `data-*`. Cada implementación debe conservar fallback sin JavaScript, foco accesible y mensajes equivalentes a la navegación tradicional.
 
+### Patrón real: filtros de Números de parte
+
+El listado de Números de parte conserva un formulario `GET` como fallback. Con JavaScript activo, el submit consulta la misma vista con la cabecera `X-Requested-With: XMLHttpRequest`; la vista devuelve el partial HTML de resultados y el navegador reemplaza únicamente el bloque `data-ajax-resultados`, sin convertir la página completa en una SPA.
+
+El patrón aplicado mantiene los mismos parámetros (`q`, `modelo`, `fraccion`, `estado` y `page`), actualiza la URL con `history.pushState`, intercepta la paginación y atiende `popstate` para atrás/adelante. El bloque de resultados muestra loading local (`aria-busy`), el botón Buscar se deshabilita y cambia temporalmente a “Buscando...”. Los errores se muestran dentro del bloque y permiten reintentar; una redirección o respuesta inesperada indica recargar e iniciar sesión nuevamente.
+
+Al replicar este patrón, revisar normalmente:
+
+- la view que conserva la respuesta HTML completa y selecciona el partial para AJAX;
+- los tests del fallback, la respuesta parcial, filtros, paginación y estados vacíos;
+- el template principal, con el formulario GET, el contenedor estable y el JS mínimo;
+- el partial de resultados, incluyendo tabla, acciones, paginación y estado vacío;
+- un archivo JS reutilizable solo si ya existe una infraestructura de assets adecuada.
+
+Checklist manual del listado: buscar con resultados; buscar sin resultados; limpiar filtros; cambiar entre activos, inactivos y todos; recorrer paginación; recargar con query params; usar atrás y adelante; repetir con JavaScript activo; y deshabilitar JavaScript para confirmar que el formulario GET sigue funcionando.
+
 ## 12. Accesibilidad y navegación
 
 Los títulos deben seguir una jerarquía (`h1` y `h2`), los botones deben describir su acción y los errores deben conservar foco o anunciarse de forma accesible. Tras generar un preview o detectar errores, mover el foco al encabezado de esa sección sin impedir que la persona vuelva al formulario.
