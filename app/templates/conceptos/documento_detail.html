@@ -12,6 +12,83 @@
     .document-detail .table-wrap { margin-top: 8px; }
     .document-detail .alert { margin-bottom: 8px; padding: 8px 10px; }
     .document-detail .page-actions .btn { font-size: 13px; padding: 6px 10px; }
+    .document-detail .table-actions .btn { font-size: 12px; padding: 4px 7px; }
+    .document-detail .orden-btn { min-width: 30px; }
+    .document-detail .row-actions-menu { display: inline-block; position: relative; }
+    .document-detail .row-actions-menu summary { cursor: pointer; list-style: none; }
+    .document-detail .row-actions-menu summary::-webkit-details-marker { display: none; }
+    .document-detail .row-actions-menu[open] summary { margin-bottom: 4px; }
+    .document-detail .row-actions-popover {
+        background: var(--panel);
+        border: 1px solid var(--border-soft);
+        border-radius: 6px;
+        box-shadow: var(--shadow);
+        min-width: 150px;
+        padding: 4px;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 2px);
+        z-index: 10;
+    }
+    .document-detail .row-action,
+    .document-detail .row-action-form { display: block; width: 100%; }
+    .document-detail .row-action {
+        background: transparent;
+        border: 0;
+        box-sizing: border-box;
+        color: var(--text);
+        justify-content: flex-start;
+        text-align: left;
+    }
+    .document-detail .row-actions-popover .row-action:hover {
+        background: var(--border-soft);
+        color: var(--text);
+    }
+    .document-detail .row-actions-popover .row-action-danger {
+        background: transparent;
+        border-color: transparent;
+        color: var(--danger);
+    }
+    .document-detail .row-actions-popover .row-action-danger:hover {
+        background: var(--danger-soft);
+        color: var(--danger);
+    }
+    .document-detail .row-action-form { margin: 0; }
+    .document-detail .drag-handle {
+        background: var(--border-soft);
+        border-radius: 4px;
+        color: var(--muted);
+        cursor: grab;
+        display: inline-block;
+        font-size: 14px;
+        font-weight: 600;
+        margin-right: 4px;
+        padding: 1px 3px;
+    }
+    .document-detail [data-drag-enabled="true"] tr[draggable="true"] { cursor: grab; }
+    .document-detail [data-drag-enabled="true"] tr[draggable="true"]:active,
+    .document-detail [data-drag-enabled="true"] tr.is-dragging,
+    .document-detail [data-drag-enabled="true"] tr.is-dragging .drag-handle { cursor: grabbing; }
+    .document-detail [data-drag-enabled="true"] tr.is-dragging {
+        background: #f3f6fa;
+        box-shadow: 0 2px 6px rgb(15 23 42 / 10%);
+        opacity: .65;
+    }
+    .document-detail [data-drag-enabled="true"] tr.drop-before { border-top: 2px solid #93c5fd; }
+    .document-detail [data-drag-enabled="true"] tr.drop-after { border-bottom: 2px solid #93c5fd; }
+    .document-detail .orden-actualizado { background: #f0fdf4; transition: background-color 1s ease; }
+    @media (max-width: 820px) {
+        .document-detail .drag-handle { display: none; }
+        .document-detail .table-wrap th:last-child,
+        .document-detail .table-wrap td:last-child {
+            background: var(--panel);
+            box-shadow: -3px 0 6px rgb(15 23 42 / 8%);
+            position: sticky;
+            right: 0;
+            z-index: 2;
+        }
+        .document-detail .table-wrap th:last-child { z-index: 3; }
+    }
 </style>
 <div class="document-detail">
 <div class="page-header">
@@ -63,59 +140,81 @@
             <thead>
                 <tr>
                     <th>Orden</th>
-                    <th>Numero de parte</th>
+                    <th>Número de parte</th>
                     <th>Serie</th>
                     <th>Modelo</th>
-                    <th>Descripcion</th>
+                    <th>Descripción</th>
                     <th>Cantidad</th>
                     <th>Precio unitario</th>
                     <th>Total concepto</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody id="conceptos-table-body">
+            <tbody
+                id="conceptos-table-body"
+                {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
+                    data-drag-enabled="true"
+                    data-reordenar-url="{% url 'conceptos:conceptos_reordenar' documento.pk %}"
+                {% endif %}
+            >
                 {% for concepto in documento.conceptos.all %}
-                    <tr data-concepto-id="{{ concepto.pk }}">
-                        <td class="js-orden">{{ concepto.orden }}</td>
+                    <tr data-concepto-id="{{ concepto.pk }}"{% if documento.es_borrador and perms.conceptos.change_documentoconceptos %} draggable="true"{% endif %}>
+                        <td class="js-orden">
+                            {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}<span class="drag-handle" title="Arrastrar para reordenar" aria-hidden="true">↕</span>{% endif %}
+                            {{ concepto.orden }}
+                        </td>
                         <td>{{ concepto.numero_parte }}</td>
                         <td>{{ concepto.serie }}</td>
                         <td>{{ concepto.modelo }}</td>
                         <td>{{ concepto.descripcion }}</td>
-                        <td>{{ concepto.cantidad }}</td>
-                        <td>{{ concepto.precio_unitario }}</td>
-                        <td>{{ concepto.total_concepto }}</td>
+                        <td>{{ concepto.cantidad|floatformat:"-4" }}</td>
+                        <td>{{ concepto.precio_unitario|floatformat:"-2" }}</td>
+                        <td>{{ concepto.total_concepto|floatformat:"-2" }}</td>
                         <td>
                             <div class="table-actions">
                                 {% if documento.status != "cancelado" and perms.conceptos.change_documentoconceptos %}
                                     <form method="post" action="{% url 'conceptos:concepto_subir' documento.pk concepto.pk %}">
                                         {% csrf_token %}
                                         <button
-                                            class="btn btn-secondary js-mover-concepto"
+                                            class="btn btn-secondary orden-btn js-mover-concepto"
                                             type="submit"
                                             data-action="subir"
                                             data-url="{% url 'conceptos:concepto_subir' documento.pk concepto.pk %}"
+                                            title="Subir concepto"
+                                            aria-label="Subir concepto"
                                             {% if forloop.first %}disabled{% endif %}
-                                        >↑ Subir</button>
+                                        >↑</button>
                                     </form>
                                     <form method="post" action="{% url 'conceptos:concepto_bajar' documento.pk concepto.pk %}">
                                         {% csrf_token %}
                                         <button
-                                            class="btn btn-secondary js-mover-concepto"
+                                            class="btn btn-secondary orden-btn js-mover-concepto"
                                             type="submit"
                                             data-action="bajar"
                                             data-url="{% url 'conceptos:concepto_bajar' documento.pk concepto.pk %}"
+                                            title="Bajar concepto"
+                                            aria-label="Bajar concepto"
                                             {% if forloop.last %}disabled{% endif %}
-                                        >↓ Bajar</button>
+                                        >↓</button>
                                     </form>
                                 {% endif %}
-                                {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
-                                    <a class="btn btn-secondary" href="{% url 'conceptos:concepto_update' documento.pk concepto.pk %}">Editar</a>
-                                {% endif %}
-                                {% if documento.es_borrador and perms.conceptos.delete_documentoconceptos %}
-                                    <form method="post" action="{% url 'conceptos:concepto_delete' documento.pk concepto.pk %}" data-confirm-action="quitar">
-                                        {% csrf_token %}
-                                        <button class="btn btn-danger-light" type="submit">Quitar concepto</button>
-                                    </form>
+                                {% if documento.es_borrador %}
+                                    {% if perms.conceptos.change_documentoconceptos or perms.conceptos.delete_documentoconceptos %}
+                                        <details class="row-actions-menu">
+                                            <summary class="btn btn-secondary">Acciones ▾</summary>
+                                            <div class="row-actions-popover" role="menu">
+                                                {% if perms.conceptos.change_documentoconceptos %}
+                                                    <a class="btn btn-secondary row-action" role="menuitem" href="{% url 'conceptos:concepto_update' documento.pk concepto.pk %}">Editar</a>
+                                                {% endif %}
+                                                {% if perms.conceptos.delete_documentoconceptos %}
+                                                    <form class="row-action-form" method="post" action="{% url 'conceptos:concepto_delete' documento.pk concepto.pk %}" data-confirm-action="quitar">
+                                                        {% csrf_token %}
+                                                        <button class="btn row-action row-action-danger" role="menuitem" type="submit">Quitar concepto</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </details>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </td>
@@ -133,6 +232,7 @@
             </tbody>
         </table>
     </div>
+    <div id="conceptos-orden-status" class="alert" role="status" style="display: none;"></div>
     {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos or documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
         <div class="page-actions" style="border-top: 1px solid var(--border-soft); justify-content: flex-end; margin-top: 16px; padding-top: 12px;">
             {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos %}
@@ -172,6 +272,12 @@
             $('#conceptos-ajax-error').text(mensaje).show();
         }
 
+        window.marcarFilaOrdenActualizada = function (fila) {
+            if (!fila) return;
+            fila.classList.add('orden-actualizado');
+            window.setTimeout(function () { fila.classList.remove('orden-actualizado'); }, 2000);
+        };
+
         $(document).on('click', '.js-mover-concepto', function (event) {
             if (!window.jQuery) {
                 return;
@@ -204,6 +310,7 @@
                     } else {
                         fila.next('tr[data-concepto-id]').after(fila);
                     }
+                    window.marcarFilaOrdenActualizada(fila[0]);
                 },
                 error: function (xhr) {
                     var mensaje = 'No se pudo actualizar el orden.';
@@ -267,6 +374,144 @@
                     HTMLFormElement.prototype.submit.call(formulario);
                 });
             });
+        });
+    }());
+</script>
+<script>
+    (function () {
+        var tabla = document.getElementById('conceptos-table-body');
+        if (!tabla || tabla.dataset.dragEnabled !== 'true') return;
+
+        var filaArrastrada = null;
+        var filaArrastradaId = null;
+        var ordenAnterior = null;
+        var guardando = false;
+        var status = document.getElementById('conceptos-orden-status');
+        var error = document.getElementById('conceptos-ajax-error');
+
+        function filas() {
+            return Array.prototype.slice.call(tabla.querySelectorAll('tr[data-concepto-id]'));
+        }
+
+        function actualizarOrdenVisible() {
+            filas().forEach(function (fila, index) {
+                fila.querySelector('.js-orden').lastChild.textContent = ' ' + (index + 1);
+            });
+        }
+
+        function idsActuales() {
+            return filas().map(function (fila) { return Number(fila.dataset.conceptoId); });
+        }
+
+        function restaurarOrden(ids) {
+            ids.forEach(function (id) {
+                var fila = tabla.querySelector('tr[data-concepto-id="' + id + '"]');
+                if (fila) tabla.appendChild(fila);
+            });
+            actualizarOrdenVisible();
+        }
+
+        function limpiarMarcas() {
+            filas().forEach(function (fila) {
+                fila.classList.remove('is-dragging', 'drop-before', 'drop-after');
+            });
+        }
+
+        function mostrarEstado(texto) {
+            status.textContent = texto;
+            status.style.display = texto ? '' : 'none';
+        }
+
+        function mostrarError(texto) {
+            error.textContent = texto;
+            error.style.display = '';
+        }
+
+        function sombrearFila(id) {
+            var fila = tabla.querySelector('tr[data-concepto-id="' + id + '"]');
+            if (!fila) return;
+            window.marcarFilaOrdenActualizada(fila);
+        }
+
+        function guardarOrden() {
+            var orden = idsActuales();
+            if (guardando || !ordenAnterior) return;
+            if (orden.join(',') === ordenAnterior.join(',')) {
+                ordenAnterior = null;
+                filaArrastradaId = null;
+                return;
+            }
+            guardando = true;
+            mostrarEstado('Guardando orden...');
+            tabla.setAttribute('aria-busy', 'true');
+            error.style.display = 'none';
+            var csrf = document.querySelector('input[name="csrfmiddlewaretoken"]');
+
+            fetch(tabla.dataset.reordenarUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrf ? csrf.value : '',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({orden: orden})
+            }).then(function (respuesta) {
+                return respuesta.json().then(function (datos) {
+                    if (!respuesta.ok || !datos.ok) throw new Error(datos.error || 'No se pudo guardar el orden.');
+                    return datos;
+                });
+            }).then(function () {
+                mostrarEstado('Orden actualizado.');
+                sombrearFila(filaArrastradaId);
+            }).catch(function (err) {
+                restaurarOrden(ordenAnterior);
+                limpiarMarcas();
+                mostrarEstado('');
+                mostrarError(err.message || 'No se pudo guardar el orden.');
+            }).finally(function () {
+                tabla.removeAttribute('aria-busy');
+                guardando = false;
+                ordenAnterior = null;
+                filaArrastradaId = null;
+                actualizarOrdenVisible();
+            });
+        }
+
+        if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches) {
+            filas().forEach(function (fila) { fila.removeAttribute('draggable'); });
+            return;
+        }
+
+        tabla.addEventListener('dragstart', function (evento) {
+            var fila = evento.target.closest('tr[data-concepto-id]');
+            if (!fila || guardando) return;
+            filaArrastrada = fila;
+            filaArrastradaId = Number(fila.dataset.conceptoId);
+            ordenAnterior = idsActuales();
+            limpiarMarcas();
+            fila.classList.add('is-dragging');
+            evento.dataTransfer.effectAllowed = 'move';
+        });
+
+        tabla.addEventListener('dragover', function (evento) {
+            if (!filaArrastrada || guardando) return;
+            evento.preventDefault();
+            var destino = evento.target.closest('tr[data-concepto-id]');
+            if (!destino || destino === filaArrastrada) return;
+            var rect = destino.getBoundingClientRect();
+            var antes = evento.clientY < rect.top + rect.height / 2;
+            tabla.insertBefore(filaArrastrada, antes ? destino : destino.nextSibling);
+            filas().forEach(function (fila) { fila.classList.remove('drop-before', 'drop-after'); });
+            destino.classList.add(antes ? 'drop-before' : 'drop-after');
+            actualizarOrdenVisible();
+        });
+
+        tabla.addEventListener('dragend', function () {
+            if (!filaArrastrada) return;
+            limpiarMarcas();
+            filaArrastrada = null;
+            guardarOrden();
         });
     }());
 </script>

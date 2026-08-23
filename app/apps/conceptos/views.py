@@ -1,6 +1,9 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -374,6 +377,37 @@ def concepto_subir(request, pk, concepto_id):
 @permission_required('conceptos.change_documentoconceptos', raise_exception=True)
 def concepto_bajar(request, pk, concepto_id):
     return _reordenar_concepto(request, pk, concepto_id, direccion='bajar')
+
+
+@require_POST
+@permission_required('conceptos.change_documentoconceptos', raise_exception=True)
+def conceptos_reordenar(request, pk):
+    documento = get_object_or_404(DocumentoConceptos, pk=pk)
+    if documento.status != DocumentoConceptos.STATUS_BORRADOR:
+        return JsonResponse(
+            {'ok': False, 'error': 'Solo se pueden reordenar conceptos de una factura en borrador.'},
+            status=400,
+        )
+
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+        orden = [int(concepto_id) for concepto_id in payload.get('orden', [])]
+    except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'ok': False, 'error': 'El orden recibido no es válido.'}, status=400)
+
+    conceptos = list(documento.conceptos.order_by('orden', 'pk'))
+    ids_actuales = {concepto.pk for concepto in conceptos}
+    if len(orden) != len(ids_actuales) or set(orden) != ids_actuales:
+        return JsonResponse(
+            {'ok': False, 'error': 'El orden contiene conceptos inválidos para esta factura.'},
+            status=400,
+        )
+
+    with transaction.atomic():
+        for posicion, concepto_id in enumerate(orden, start=1):
+            Concepto.objects.filter(pk=concepto_id, documento=documento).update(orden=posicion)
+
+    return JsonResponse({'ok': True, 'orden': orden})
 
 
 def _reordenar_concepto(request, pk, concepto_id, direccion):

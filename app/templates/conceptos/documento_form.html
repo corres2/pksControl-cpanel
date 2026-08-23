@@ -12,7 +12,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">{% if documento %}Editar observaciones{% else %}Nueva factura{% endif %}</h1>
-        <p class="muted">{% if documento %}Actualiza las observaciones de {{ documento.folio }}.{% else %}Crea una factura en borrador para comenzar a capturar conceptos.{% endif %}</p>
+        <p class="muted">{% if documento %}Actualiza las observaciones de {{ documento.folio }}.{% else %}Crea una factura en borrador para capturar conceptos.{% endif %}</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Volver</a>
@@ -33,7 +33,7 @@
         </div>
 
         <div class="page-actions">
-            <button class="btn btn-primary" type="submit">{% if documento %}Guardar factura{% else %}Crear factura{% endif %}</button>
+            <button class="btn btn-primary" type="submit">{% if documento %}Guardar observaciones{% else %}Crear factura{% endif %}</button>
             <a class="btn btn-secondary" href="{% if documento %}{% url 'conceptos:documento_detail' documento.pk %}{% else %}{% url 'conceptos:documentos_list' %}{% endif %}">Cancelar</a>
         </div>
     </form>

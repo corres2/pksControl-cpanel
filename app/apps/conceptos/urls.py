@@ -6,6 +6,7 @@ from apps.conceptos.views import (
     concepto_delete,
     concepto_subir,
     concepto_update,
+    conceptos_reordenar,
     conceptos_importar,
     conceptos_importar_cancelar,
     conceptos_importar_confirmar,
@@ -53,6 +54,7 @@ urlpatterns = [
         concepto_bajar,
         name='concepto_bajar',
     ),
+    path('<int:pk>/conceptos/reordenar/', conceptos_reordenar, name='conceptos_reordenar'),
     path(
         '<int:pk>/conceptos/<int:concepto_id>/quitar/',
         concepto_delete,

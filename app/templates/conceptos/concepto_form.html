@@ -3,6 +3,16 @@
 {% block title %}{{ titulo }} - Sistema Django{% endblock %}
 
 {% block content %}
+<style>
+    .concepto-form > .card { padding: 16px; }
+    .concepto-form .form-grid { gap: 10px; }
+    .concepto-form .card-grid { gap: 10px; }
+    .concepto-form .form-field { gap: 4px; }
+    .concepto-form .page-actions { margin-top: 0; }
+    .concepto-form textarea { min-height: 72px; }
+    .concepto-form .table-actions .btn { font-size: 13px; padding: 5px 8px; }
+</style>
+<div class="concepto-form">
 <div class="page-header">
     <div>
         <h1 class="page-title">{{ titulo }}</h1>
@@ -143,4 +153,5 @@
         </div>
     {% endif %}
 </div>
+ </div>
 {% endblock %}

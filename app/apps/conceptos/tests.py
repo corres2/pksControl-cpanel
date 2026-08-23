@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from io import BytesIO, StringIO
 
@@ -1917,6 +1918,93 @@ class ConceptosViewsTests(TestCase):
         segundo.refresh_from_db()
         self.assertEqual(primero.orden, 2)
         self.assertEqual(segundo.orden, 1)
+
+    def test_ajax_reordenar_guarda_orden_completo(self):
+        documento = self._crear_documento()
+        primero = self._crear_concepto(documento, 'NP-1', 1)
+        segundo = self._crear_concepto(documento, 'NP-2', 2)
+        tercero = self._crear_concepto(documento, 'NP-3', 3)
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.post(
+            reverse('conceptos:conceptos_reordenar', kwargs={'pk': documento.pk}),
+            data=json.dumps({'orden': [tercero.pk, primero.pk, segundo.pk]}),
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'ok': True, 'orden': [tercero.pk, primero.pk, segundo.pk]})
+        tercero.refresh_from_db()
+        primero.refresh_from_db()
+        segundo.refresh_from_db()
+        self.assertEqual([tercero.orden, primero.orden, segundo.orden], [1, 2, 3])
+
+    def test_ajax_reordenar_rechaza_concepto_de_otra_factura(self):
+        documento = self._crear_documento()
+        otro_documento = self._crear_documento()
+        concepto = self._crear_concepto(documento, 'NP-1', 1)
+        concepto_otro = self._crear_concepto(otro_documento, 'NP-2', 1)
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.post(
+            reverse('conceptos:conceptos_reordenar', kwargs={'pk': otro_documento.pk}),
+            data=json.dumps({'orden': [concepto.pk]}),
+            content_type='application/json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+        concepto.refresh_from_db()
+        concepto_otro.refresh_from_db()
+        self.assertEqual(concepto.orden, 1)
+        self.assertEqual(concepto_otro.orden, 1)
+
+    def test_ajax_reordenar_rechaza_factura_no_borrador(self):
+        documento = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
+        concepto = self._crear_concepto(documento, 'NP-1', 1)
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.post(
+            reverse('conceptos:conceptos_reordenar', kwargs={'pk': documento.pk}),
+            data=json.dumps({'orden': [concepto.pk]}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+
+    def test_ajax_reordenar_rechaza_factura_cancelada(self):
+        documento = self._crear_documento(status=DocumentoConceptos.STATUS_CANCELADO)
+        concepto = self._crear_concepto(documento, 'NP-1', 1)
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.post(
+            reverse('conceptos:conceptos_reordenar', kwargs={'pk': documento.pk}),
+            data=json.dumps({'orden': [concepto.pk]}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+
+    def test_ajax_reordenar_respeta_permiso(self):
+        documento = self._crear_documento()
+        concepto = self._crear_concepto(documento, 'NP-1', 1)
+        self._login()
+
+        response = self.client.post(
+            reverse('conceptos:conceptos_reordenar', kwargs={'pk': documento.pk}),
+            data=json.dumps({'orden': [concepto.pk]}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
 
     def test_primero_no_puede_subir(self):
         documento = self._crear_documento()
