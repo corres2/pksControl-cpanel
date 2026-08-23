@@ -18,6 +18,23 @@ Los templates ya comparten estos patrones definidos en `base.html`:
 
 En nuevas vistas se deben reutilizar estas clases antes de crear variantes. Las acciones condicionadas por permisos deben conservar el patrón actual: ocultar la acción no autorizada y proteger también la vista en servidor.
 
+## Diseño minimalista y compacto
+
+- Priorizar pantallas limpias, compactas y fáciles de escanear.
+- No duplicar datos visibles en la misma pantalla.
+- No usar tarjetas, filas o bloques completos para datos secundarios.
+- Colocar cada acción donde naturalmente pertenece:
+  - acciones del listado dentro del listado;
+  - acciones secundarias cerca del encabezado;
+  - acciones finales juntas como cierre del flujo;
+  - acciones peligrosas separadas y con color semántico.
+- Usar colores semánticos: verde para confirmar o cerrar positivamente; rojo para cancelar, eliminar o indicar riesgo; neutro para editar, exportar o volver; azul para la acción operativa principal, sin abusar.
+- Usar estados como badges discretos.
+- Mostrar los totales una sola vez y cerca del contexto donde se usan.
+- Los estados vacíos deben orientar, sin duplicar botones innecesarios.
+- Reducir el aire vertical cuando no aporta claridad.
+- Evitar textos largos si la acción ya es evidente.
+
 ## 1. Páginas de listado
 
 Estructura recomendada:

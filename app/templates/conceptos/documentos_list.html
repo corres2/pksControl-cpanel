@@ -5,14 +5,50 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Conceptos</h1>
-        <p class="muted">Consulta y administra tus documentos de captura de conceptos.</p>
+        <h1 class="page-title">Documentos de conceptos</h1>
+        <p class="muted">Consulta, filtra y administra tus documentos de captura de conceptos.</p>
     </div>
     <div class="page-actions">
         {% if perms.conceptos.add_documentoconceptos %}
             <a class="btn btn-primary" href="{% url 'conceptos:documento_create' %}">Nuevo documento</a>
         {% endif %}
     </div>
+</div>
+
+<div class="card">
+    <form class="form-grid" method="get">
+        <div class="form-field">
+            <label for="id_q">Buscar por folio</label>
+            <input id="id_q" type="search" name="q" value="{{ busqueda }}" placeholder="Ejemplo: CON-000001">
+        </div>
+        <div class="form-field">
+            <label for="id_estado">Estado</label>
+            <select id="id_estado" name="estado">
+                <option value="">Todos</option>
+                {% for valor, etiqueta in status_choices %}
+                    <option value="{{ valor }}"{% if estado == valor %} selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="id_fuente">Fuente</label>
+            <select id="id_fuente" name="fuente">
+                <option value="">Todas</option>
+                {% for valor, etiqueta in fuente_choices %}
+                    <option value="{{ valor }}"{% if fuente == valor %} selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Buscar</button>
+            {% if filtros_aplicados %}
+                <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Limpiar filtros</a>
+            {% endif %}
+        </div>
+    </form>
+    {% if filtros_activos %}
+        <p class="muted">Filtros activos: {% for filtro in filtros_activos %}<span class="badge">{{ filtro }}</span> {% endfor %}</p>
+    {% endif %}
 </div>
 
 <div class="card">
@@ -26,6 +62,7 @@
                     <th>Total</th>
                     <th>Usuario</th>
                     <th>Creado</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -44,21 +81,36 @@
                                 <span class="badge">{{ documento.status }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ documento.total }}</td>
+                        <td>{{ documento.total|floatformat:2 }}</td>
                         <td>{{ documento.usuario|default:"" }}</td>
                         <td>{{ documento.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Ver detalle</a>
+                                {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
+                                    <a class="btn btn-secondary" href="{% url 'conceptos:documento_update' documento.pk %}">Editar</a>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6">
+                        <td colspan="7">
                             <div class="alert" role="status">
-                                <strong>Aún no hay documentos de conceptos registrados.</strong>
-                                <p class="muted">Crea un documento para comenzar a capturar conceptos.</p>
-                                {% if perms.conceptos.add_documentoconceptos %}
+                                {% if filtros_aplicados %}
+                                    <strong>No encontramos documentos con los filtros aplicados.</strong>
+                                    <p class="muted">Prueba con otros criterios o limpia los filtros para ver todos los documentos.</p>
                                     <div class="page-actions">
-                                        <a class="btn btn-primary" href="{% url 'conceptos:documento_create' %}">Nuevo documento</a>
-                                    </div>
+                                        <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Limpiar filtros</a>
+                                {% else %}
+                                    <strong>Aún no hay documentos de conceptos registrados.</strong>
+                                    <p class="muted">Crea un documento para comenzar a capturar conceptos.</p>
+                                    <div class="page-actions">
                                 {% endif %}
+                                {% if perms.conceptos.add_documentoconceptos %}
+                                    <a class="btn btn-primary" href="{% url 'conceptos:documento_create' %}">Nuevo documento</a>
+                                {% endif %}
+                                    </div>
                             </div>
                         </td>
                     </tr>
@@ -70,10 +122,10 @@
     <div class="pagination">
         <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
         {% if page_obj.has_previous %}
-            <a class="btn btn-secondary" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
         {% endif %}
         {% if page_obj.has_next %}
-            <a class="btn btn-secondary" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+            <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
         {% endif %}
     </div>
 </div>

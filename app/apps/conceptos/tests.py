@@ -459,6 +459,70 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Conceptos')
 
+    def test_listado_filtra_por_folio_y_estado(self):
+        primero = self._crear_documento()
+        segundo = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
+        self._grant('view_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:documentos_list'),
+            {'q': primero.folio, 'estado': DocumentoConceptos.STATUS_BORRADOR},
+        )
+
+        self.assertContains(response, primero.folio)
+        self.assertNotContains(response, segundo.folio)
+        self.assertContains(response, 'Filtros activos:')
+        self.assertContains(response, 'Limpiar filtros')
+
+    def test_listado_sin_resultados_por_filtro_muestra_estado_util(self):
+        self._crear_documento()
+        self._grant('view_documentoconceptos', 'add_documentoconceptos')
+        self._login()
+
+        response = self.client.get(reverse('conceptos:documentos_list'), {'q': 'CON-NO-EXISTE'})
+
+        self.assertContains(response, 'No encontramos documentos con los filtros aplicados.')
+        self.assertContains(response, 'Limpiar filtros')
+        self.assertContains(response, 'Nuevo documento')
+
+    def test_listado_vacio_muestra_accion_para_crear(self):
+        self._grant('view_documentoconceptos', 'add_documentoconceptos')
+        self._login()
+
+        response = self.client.get(reverse('conceptos:documentos_list'))
+
+        self.assertContains(response, 'Aún no hay documentos de conceptos registrados.')
+        self.assertContains(response, 'Nuevo documento')
+
+    def test_detalle_muestra_resumen_compacto_y_acciones_del_borrador(self):
+        documento = self._crear_documento()
+        self._grant(
+            'view_documentoconceptos',
+            'change_documentoconceptos',
+            'puede_confirmar_documentoconceptos',
+            'puede_cancelar_documentoconceptos',
+        )
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:documento_detail', kwargs={'pk': documento.pk})
+        )
+
+        self.assertContains(response, documento.folio)
+        self.assertContains(response, 'Borrador', count=1)
+        self.assertContains(response, 'Conceptos')
+        self.assertContains(response, '· Total: 0.00')
+        self.assertContains(response, 'Fuente: manual')
+        self.assertContains(response, '✎ Editar')
+        self.assertContains(response, '⬇ Exportar Word')
+        self.assertContains(response, '← Volver')
+        self.assertContains(response, '＋ Agregar concepto')
+        self.assertContains(response, '⇧ Importar conceptos')
+        self.assertContains(response, '✓ Confirmar documento')
+        self.assertContains(response, '⚠ Cancelar documento')
+        self.assertNotContains(response, 'Sin observaciones.')
+
     def test_usuario_con_permiso_add_crea_documento(self):
         self._grant('add_documentoconceptos')
         self._login()

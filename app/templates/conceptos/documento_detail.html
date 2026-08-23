@@ -3,11 +3,21 @@
 {% block title %}{{ documento.folio }} - Sistema Django{% endblock %}
 
 {% block content %}
+<style>
+    .document-detail > .page-header { margin-bottom: 10px; }
+    .document-detail > .card { padding: 16px; }
+    .document-detail > .card .page-header { margin-bottom: 8px; }
+    .document-detail > .card > p { margin: 0 0 8px; }
+    .document-detail .page-title { margin-bottom: 4px; }
+    .document-detail .table-wrap { margin-top: 8px; }
+    .document-detail .alert { margin-bottom: 8px; padding: 8px 10px; }
+    .document-detail .page-actions .btn { font-size: 13px; padding: 6px 10px; }
+</style>
+<div class="document-detail">
 <div class="page-header">
     <div>
-        <h1 class="page-title">{{ documento.folio }}</h1>
-        <p class="muted">Detalle del documento de conceptos. Revisa el estado y el total antes de continuar.</p>
-        <p>
+        <h1 class="page-title" style="align-items: center; display: flex; flex-wrap: wrap; gap: 8px;">
+            <span style="white-space: nowrap;">{{ documento.folio }}</span>
             {% if documento.status == "borrador" %}
                 <span class="badge badge-warning">Borrador</span>
             {% elif documento.status == "confirmado" %}
@@ -17,20 +27,11 @@
             {% else %}
                 <span class="badge">{{ documento.status|capfirst }}</span>
             {% endif %}
-            <span class="muted">Total: {{ documento.total|floatformat:2 }}</span>
+        </h1>
+        <p class="muted">
+            <span class="badge">Fuente: {{ documento.fuente }}</span>
+            Captura y revisa conceptos antes de confirmar.
         </p>
-    </div>
-    <div class="page-actions">
-        {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
-            <a class="btn btn-primary" href="{% url 'conceptos:concepto_create' documento.pk %}">＋ Agregar concepto</a>
-            <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_importar' documento.pk %}">⇧ Importar conceptos</a>
-        {% endif %}
-        {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos %}
-            <form method="post" action="{% url 'conceptos:documento_confirmar' documento.pk %}" data-confirm-action="confirmar">
-                {% csrf_token %}
-                <button class="btn btn-primary" type="submit">✓ Confirmar documento</button>
-            </form>
-        {% endif %}
     </div>
     <div class="page-actions">
         {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
@@ -39,67 +40,23 @@
         <a class="btn btn-secondary" href="{% url 'conceptos:documento_exportar_word' documento.pk %}">⬇ Exportar Word</a>
         <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">← Volver</a>
     </div>
-    {% if documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
-        <div class="page-actions">
-            <span class="muted">Zona de riesgo:</span>
-            <form method="post" action="{% url 'conceptos:documento_cancelar' documento.pk %}" data-confirm-action="cancelar">
-                {% csrf_token %}
-                <button class="btn btn-danger-light" type="submit">⚠ Cancelar documento</button>
-            </form>
-        </div>
-    {% endif %}
-</div>
-
-<div class="card">
-    <dl class="detail-list">
-        <div>
-            <dt>Estado</dt>
-            <dd>
-                {% if documento.status == "borrador" %}
-                    <span class="badge badge-warning">Borrador</span>
-                {% elif documento.status == "confirmado" %}
-                    <span class="badge badge-ok">Confirmado</span>
-                {% elif documento.status == "cancelado" %}
-                    <span class="badge badge-error">Cancelado</span>
-                {% else %}
-                    <span class="badge">{{ documento.status|capfirst }}</span>
-                {% endif %}
-            </dd>
-        </div>
-        <div>
-            <dt>Fuente</dt>
-            <dd>{{ documento.fuente }}</dd>
-        </div>
-        <div>
-            <dt>Total</dt>
-            <dd>{{ documento.total|floatformat:2 }}</dd>
-        </div>
-        <div>
-            <dt>Observaciones</dt>
-            <dd>{{ documento.observaciones|default:"Sin observaciones." }}</dd>
-        </div>
-        <div>
-            <dt>Qué puedes hacer</dt>
-            <dd>
-                {% if documento.status == "borrador" %}
-                    Borrador: puedes agregar o importar conceptos y confirmar el documento cuando esté listo.
-                {% elif documento.status == "confirmado" %}
-                    Confirmado: el documento está cerrado; puedes consultar sus conceptos y exportarlo.
-                {% elif documento.status == "cancelado" %}
-                    Cancelado: el documento está cancelado y disponible para consulta.
-                {% endif %}
-            </dd>
-        </div>
-    </dl>
 </div>
 
 <div class="card">
     <div class="page-header">
         <div>
-            <h2 class="page-title">Conceptos</h2>
-            <p class="muted">Total general: {{ documento.total|floatformat:2 }}</p>
+            <h2 class="page-title">Conceptos <span class="muted">· Total: {{ documento.total|floatformat:2 }}</span></h2>
         </div>
+        {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
+            <div class="page-actions">
+                <a class="btn btn-primary" href="{% url 'conceptos:concepto_create' documento.pk %}">＋ Agregar concepto</a>
+                <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_importar' documento.pk %}">⇧ Importar conceptos</a>
+            </div>
+        {% endif %}
     </div>
+    {% if documento.observaciones %}
+        <p class="muted"><strong>Observaciones:</strong> {{ documento.observaciones }}</p>
+    {% endif %}
     <div id="conceptos-ajax-error" class="alert alert-error" style="display: none;"></div>
     <div class="table-wrap">
         <table class="data-table">
@@ -168,13 +125,7 @@
                         <td colspan="9">
                             <div class="alert" role="status">
                                 <strong>Este documento aún no tiene conceptos.</strong>
-                                {% if documento.es_borrador and perms.conceptos.change_documentoconceptos %}
-                                    <p class="muted">Puedes capturarlos manualmente o importarlos desde CSV/XLSX.</p>
-                                    <div class="page-actions">
-                                        <a class="btn btn-primary" href="{% url 'conceptos:concepto_create' documento.pk %}">Agregar concepto</a>
-                                        <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_importar' documento.pk %}">Importar conceptos</a>
-                                    </div>
-                                {% endif %}
+                                <p class="muted">Usa Agregar concepto o Importar conceptos para comenzar.</p>
                             </div>
                         </td>
                     </tr>
@@ -182,6 +133,24 @@
             </tbody>
         </table>
     </div>
+    {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos or documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
+        <div class="page-actions" style="border-top: 1px solid var(--border-soft); justify-content: flex-end; margin-top: 16px; padding-top: 12px;">
+            {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos %}
+                <form method="post" action="{% url 'conceptos:documento_confirmar' documento.pk %}" data-confirm-action="confirmar">
+                    {% csrf_token %}
+                    <button class="btn btn-primary" style="background: var(--success);" type="submit">✓ Confirmar documento</button>
+                </form>
+            {% endif %}
+            {% if documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
+                <form method="post" action="{% url 'conceptos:documento_cancelar' documento.pk %}" data-confirm-action="cancelar">
+                    {% csrf_token %}
+                    <button class="btn btn-danger-light" type="submit">⚠ Cancelar documento</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>

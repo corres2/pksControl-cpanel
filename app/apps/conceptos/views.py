@@ -32,11 +32,45 @@ SESSION_IMPORTACION_PREFIX = 'conceptos_importacion_'
 @permission_required('conceptos.view_documentoconceptos')
 def documentos_list(request):
     queryset = DocumentoConceptos.objects.select_related('usuario').order_by('-created_at')
+    busqueda = request.GET.get('q', '').strip()
+    estado = request.GET.get('estado', '').strip()
+    fuente = request.GET.get('fuente', '').strip()
+    estados_validos = {valor for valor, _ in DocumentoConceptos.STATUSES}
+    fuentes_validas = {valor for valor, _ in DocumentoConceptos.FUENTES}
+    if busqueda:
+        queryset = queryset.filter(folio__icontains=busqueda)
+    if estado in estados_validos:
+        queryset = queryset.filter(status=estado)
+    else:
+        estado = ''
+    if fuente in fuentes_validas:
+        queryset = queryset.filter(fuente=fuente)
+    else:
+        fuente = ''
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    filtros_activos = []
+    if busqueda:
+        filtros_activos.append(f'Folio: {busqueda}')
+    if estado:
+        filtros_activos.append(dict(DocumentoConceptos.STATUSES)[estado])
+    if fuente:
+        filtros_activos.append(dict(DocumentoConceptos.FUENTES)[fuente])
     page_obj = Paginator(queryset, 25).get_page(request.GET.get('page'))
     return render(
         request,
         'conceptos/documentos_list.html',
-        {'page_obj': page_obj},
+        {
+            'page_obj': page_obj,
+            'busqueda': busqueda,
+            'estado': estado,
+            'fuente': fuente,
+            'status_choices': DocumentoConceptos.STATUSES,
+            'fuente_choices': DocumentoConceptos.FUENTES,
+            'filtros_activos': filtros_activos,
+            'filtros_aplicados': bool(filtros_activos),
+            'querystring': query_params.urlencode(),
+        },
     )
 
 
