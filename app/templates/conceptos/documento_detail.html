@@ -6,7 +6,19 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">{{ documento.folio }}</h1>
-        <p class="muted">Detalle de documento de conceptos.</p>
+        <p class="muted">Detalle del documento de conceptos. Revisa el estado y el total antes de continuar.</p>
+        <p>
+            {% if documento.status == "borrador" %}
+                <span class="badge badge-warning">Borrador</span>
+            {% elif documento.status == "confirmado" %}
+                <span class="badge badge-ok">Confirmado</span>
+            {% elif documento.status == "cancelado" %}
+                <span class="badge badge-error">Cancelado</span>
+            {% else %}
+                <span class="badge">{{ documento.status|capfirst }}</span>
+            {% endif %}
+            <span class="muted">Total: {{ documento.total }}</span>
+        </p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'conceptos:documentos_list' %}">Volver al listado</a>
@@ -17,15 +29,15 @@
             <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_importar' documento.pk %}">Importar conceptos</a>
         {% endif %}
         {% if documento.es_borrador and perms.conceptos.puede_confirmar_documentoconceptos %}
-            <form method="post" action="{% url 'conceptos:documento_confirmar' documento.pk %}">
+            <form method="post" action="{% url 'conceptos:documento_confirmar' documento.pk %}" data-confirm-action="confirmar">
                 {% csrf_token %}
                 <button class="btn btn-primary" type="submit">Confirmar documento</button>
             </form>
         {% endif %}
         {% if documento.status != "cancelado" and perms.conceptos.puede_cancelar_documentoconceptos %}
-            <form method="post" action="{% url 'conceptos:documento_cancelar' documento.pk %}">
+            <form method="post" action="{% url 'conceptos:documento_cancelar' documento.pk %}" data-confirm-action="cancelar">
                 {% csrf_token %}
-                <button class="btn btn-danger-light" type="submit">Cancelar</button>
+                <button class="btn btn-danger-light" type="submit">Cancelar documento</button>
             </form>
         {% endif %}
     </div>
@@ -37,13 +49,13 @@
             <dt>Estado</dt>
             <dd>
                 {% if documento.status == "borrador" %}
-                    <span class="badge badge-warning">{{ documento.status }}</span>
+                    <span class="badge badge-warning">Borrador</span>
                 {% elif documento.status == "confirmado" %}
-                    <span class="badge badge-ok">{{ documento.status }}</span>
+                    <span class="badge badge-ok">Confirmado</span>
                 {% elif documento.status == "cancelado" %}
-                    <span class="badge badge-error">{{ documento.status }}</span>
+                    <span class="badge badge-error">Cancelado</span>
                 {% else %}
-                    <span class="badge">{{ documento.status }}</span>
+                    <span class="badge">{{ documento.status|capfirst }}</span>
                 {% endif %}
             </dd>
         </div>
@@ -58,6 +70,18 @@
         <div>
             <dt>Observaciones</dt>
             <dd>{{ documento.observaciones|default:"" }}</dd>
+        </div>
+        <div>
+            <dt>Qué puedes hacer</dt>
+            <dd>
+                {% if documento.status == "borrador" %}
+                    Puedes agregar o importar conceptos, revisarlos y confirmar el documento cuando esté listo.
+                {% elif documento.status == "confirmado" %}
+                    El documento está confirmado; puedes consultar sus conceptos y exportarlo.
+                {% elif documento.status == "cancelado" %}
+                    El documento está cancelado; conserva su información para consulta.
+                {% endif %}
+            </dd>
         </div>
     </dl>
 </div>
@@ -124,9 +148,9 @@
                                     <a class="btn btn-secondary" href="{% url 'conceptos:concepto_update' documento.pk concepto.pk %}">Editar</a>
                                 {% endif %}
                                 {% if documento.es_borrador and perms.conceptos.delete_documentoconceptos %}
-                                    <form method="post" action="{% url 'conceptos:concepto_delete' documento.pk concepto.pk %}">
+                                    <form method="post" action="{% url 'conceptos:concepto_delete' documento.pk concepto.pk %}" data-confirm-action="quitar">
                                         {% csrf_token %}
-                                        <button class="btn btn-danger-light" type="submit">Quitar</button>
+                                        <button class="btn btn-danger-light" type="submit">Quitar concepto</button>
                                     </form>
                                 {% endif %}
                             </div>
@@ -154,6 +178,8 @@
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<!-- CDN temporal; las confirmaciones conservan fallback con confirm() sin JavaScript o sin Swal. -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     (function ($) {
         function actualizarControles() {
@@ -182,9 +208,10 @@
             var form = boton.closest('form');
             var fila = boton.closest('tr');
             var accion = boton.data('action');
-            var botones = $('.js-mover-concepto');
+            var textoOriginal = boton.text();
             $('#conceptos-ajax-error').hide().text('');
-            botones.prop('disabled', true);
+            boton.prop('disabled', true).text('Procesando...');
+            fila.attr('aria-busy', 'true');
 
             $.ajax({
                 url: boton.data('url'),
@@ -211,9 +238,60 @@
                 },
                 complete: function () {
                     actualizarControles();
+                    boton.text(textoOriginal);
+                    fila.removeAttr('aria-busy');
                 }
             });
         });
     })(jQuery);
+</script>
+<script>
+    (function () {
+        function confirmarAccion(formulario, accion) {
+            var inactivar = accion === 'cancelar';
+            var titulo = accion === 'confirmar'
+                ? '¿Confirmar documento?'
+                : (inactivar ? '¿Cancelar documento?' : '¿Quitar concepto?');
+            var texto = accion === 'confirmar'
+                ? 'Después de confirmar, el documento dejará de ser un borrador.'
+                : (inactivar ? 'Esta acción cambiará el estado del documento.' : 'El concepto se quitará del documento.');
+
+            if (window.Swal) {
+                return window.Swal.fire({
+                    title: titulo,
+                    text: texto,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Continuar',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true
+                }).then(function (resultado) { return resultado.isConfirmed; });
+            }
+            return Promise.resolve(window.confirm(titulo + '\n' + texto));
+        }
+
+        document.querySelectorAll('[data-confirm-action]').forEach(function (formulario) {
+            formulario.addEventListener('submit', function (evento) {
+                if (formulario.dataset.procesando === 'true') {
+                    evento.preventDefault();
+                    return;
+                }
+                evento.preventDefault();
+                var accion = formulario.dataset.confirmAction;
+                var boton = formulario.querySelector('button[type="submit"]');
+                confirmarAccion(formulario, accion).then(function (confirmado) {
+                    if (!confirmado) return;
+                    formulario.dataset.procesando = 'true';
+                    if (boton) {
+                        boton.disabled = true;
+                        boton.textContent = accion === 'confirmar'
+                            ? 'Confirmando...'
+                            : (accion === 'cancelar' ? 'Cancelando...' : 'Quitando...');
+                    }
+                    HTMLFormElement.prototype.submit.call(formulario);
+                });
+            });
+        });
+    }());
 </script>
 {% endblock %}
