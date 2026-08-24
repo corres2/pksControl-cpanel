@@ -1,6 +1,6 @@
 # Archivos para repo/ZIP cPanel
 
-Guia para preparar una copia futura recortada del proyecto en un repo separado, por ejemplo `pksControl-cpanel`.
+Guia para preparar una copia recortada del proyecto para cPanel. El repositorio Git puede conservar documentación y tests; el paquete de despliegue debe contener solo archivos necesarios para ejecutar la aplicación.
 
 ## Incluir
 
@@ -8,20 +8,21 @@ Guia para preparar una copia futura recortada del proyecto en un repo separado, 
 - `requirements/`
 - `requirements.txt`
 - `passenger_wsgi.py`
-- `.env.example`
-- `.cpanelignore`
-- `README.md`
-- `CHANGELOG.md` si se desea historial de version.
-- `MANUAL.md` si aplica para usuarios finales.
-- `docs/CPANEL_DEPLOY.md`
-- `docs/CPANEL_ZIP_INCLUDE.md`
 - Migraciones Django dentro de cada app.
+
+La documentación, `.env.example` y archivos de control del repositorio no se incluyen en el paquete final; se conservan en Git para referencia y operación segura.
 
 ## No incluir
 
 - `.env` real.
 - `.env.*` reales con secretos.
 - `.git/`
+- `.gitignore`
+- `.cpanelignore`
+- `README.md`
+- `AGENTS.md`
+- `docs/`
+- `tests.py` y carpetas `tests/`
 - `.agents/`
 - `.codex/`
 - `docker/`
@@ -33,8 +34,11 @@ Guia para preparar una copia futura recortada del proyecto en un repo separado, 
 - `venv/`
 - `__pycache__/`
 - `*.pyc`
+- `*.pyo`, `*.pyd`
+- `*.tmp`, `*.bak`, `~$*`, `*.zip`
+- `.env.example`
 - `app/media/` con archivos reales de usuarios, salvo que se haga una migracion controlada.
-- `app/staticfiles/` generado, salvo que el hosting no permita ejecutar `collectstatic`.
+- `app/staticfiles/` generado se conserva solo si el hosting lo requiere; de lo contrario, ejecutar `collectstatic` en cPanel.
 
 ## Advertencias
 
