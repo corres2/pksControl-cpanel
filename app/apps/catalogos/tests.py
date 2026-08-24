@@ -493,19 +493,19 @@ class NumeroParteManualViewsTests(TestCase):
 
         self.assertContains(response, 'Nuevo número de parte')
 
-    def test_listado_muestra_boton_editar_solo_con_permiso_change(self):
-        self._crear_numero_parte()
-        self._grant('view_numeroparte')
+    def test_listado_enlaza_numero_parte_al_flujo_de_edicion(self):
+        numero_parte = self._crear_numero_parte()
+        self._grant('view_numeroparte', 'change_numeroparte')
         self._login()
 
         response = self.client.get(reverse('catalogos:numeros_parte_list'))
 
-        self.assertNotContains(response, 'Editar')
-
-        self._grant('change_numeroparte')
-        response = self.client.get(reverse('catalogos:numeros_parte_list'))
-
-        self.assertContains(response, 'Editar')
+        self.assertContains(
+            response,
+            f'href="/catalogos/numeros-parte/{numero_parte.pk}/editar/"',
+        )
+        self.assertContains(response, 'data-no-ajax')
+        self.assertNotContains(response, '>Editar<')
 
     def test_listado_default_muestra_activos_y_oculta_inactivos(self):
         self._crear_numero_parte('NP-ACTIVO', activo=True)

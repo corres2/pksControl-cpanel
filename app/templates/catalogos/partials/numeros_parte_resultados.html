@@ -17,7 +17,11 @@
                     <tr>
                         <td>
                             {% if perms.catalogos.view_numeroparte %}
-                                <a href="{% url 'catalogos:numero_parte_detail' item.pk %}">{{ item.numero_parte }}</a>
+                                {% if perms.catalogos.change_numeroparte %}
+                                    <a href="{% url 'catalogos:numero_parte_update' item.pk %}" data-no-ajax>{{ item.numero_parte }}</a>
+                                {% else %}
+                                    <a href="{% url 'catalogos:numero_parte_detail' item.pk %}" data-no-ajax>{{ item.numero_parte }}</a>
+                                {% endif %}
                             {% else %}
                                 {{ item.numero_parte }}
                             {% endif %}
@@ -36,7 +40,6 @@
                         <td>
                             <div class="table-actions">
                                 {% if perms.catalogos.change_numeroparte %}
-                                    <a class="btn btn-secondary" href="{% url 'catalogos:numero_parte_update' item.pk %}">Editar</a>
                                     {% if item.activo %}
                                         <form method="post" action="{% url 'catalogos:numero_parte_inactivar' item.pk %}" data-ajax-estado data-activar-url="{% url 'catalogos:numero_parte_activar' item.pk %}" data-inactivar-url="{% url 'catalogos:numero_parte_inactivar' item.pk %}">
                                             {% csrf_token %}

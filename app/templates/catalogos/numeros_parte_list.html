@@ -157,7 +157,7 @@
 
     resultados.addEventListener('click', function (evento) {
         const enlace = evento.target.closest('a[href]');
-        if (!enlace || !enlace.closest('[data-ajax-resultados]')) return;
+        if (!enlace || !enlace.closest('.pagination') || enlace.hasAttribute('data-no-ajax')) return;
         const url = new URL(enlace.href, window.location.href);
         if (url.origin !== window.location.origin) return;
         evento.preventDefault();
