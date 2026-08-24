@@ -486,6 +486,149 @@ class ConceptosViewsTests(TestCase):
     def _buscar_historial(self, serie):
         return _buscar_sugerencias_historial({'numero_parte': '', 'serie': serie})
 
+    def test_formulario_incluye_controles_de_autocomplete(self):
+        self._grant('change_documentoconceptos')
+        self._login()
+        response = self.client.get(
+            reverse('conceptos:concepto_create', kwargs={'pk': self._crear_documento().pk})
+        )
+
+        self.assertContains(response, 'data-autocomplete-field="numero_parte"')
+        self.assertContains(response, 'data-autocomplete-field="serie"')
+        self.assertContains(response, 'data-autocomplete-field="modelo"')
+        self.assertContains(response, 'conceptos/autocomplete/')
+        self.assertContains(response, 'autocomplete="off"')
+
+    def test_autocomplete_por_serie_devuelve_patron_activo(self):
+        documento = self._crear_documento()
+        PatronSerie.objects.create(
+            prefix='QI14947',
+            numero_parte='XQ235U',
+            modelo='ROCK L 20 DC 375',
+            descripcion='Sensor',
+            sample_size=3,
+            series_unicas=3,
+            estado=PatronSerie.ESTADO_APROBADO,
+            activo=True,
+        )
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:conceptos_autocomplete'),
+            {'campo': 'serie', 'q': 'QI149470'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['resultados'][0]['numero_parte'], 'XQ235U')
+        self.assertEqual(response.json()['resultados'][0]['origen'], 'patron')
+
+    def test_autocomplete_por_modelo_excluye_historial_no_confirmado(self):
+        borrador = self._crear_documento()
+        self._crear_historial_sugerencia(borrador, 'SER-BORRADOR')
+        confirmado = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
+        historial = self._crear_historial_sugerencia(confirmado, 'SER-CONFIRMADA')
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:conceptos_autocomplete'),
+            {'campo': 'modelo', 'q': 'MOD-HIST'},
+        )
+
+        ids = [item['id'] for item in response.json()['resultados']]
+        self.assertIn(historial.pk, ids)
+        self.assertEqual(len(ids), 1)
+
+    def test_autocomplete_por_numero_parte_deduplica_patrones_equivalentes(self):
+        documento = self._crear_documento()
+        for prefix in ('NP-DEDUP-A', 'NP-DEDUP-B'):
+            PatronSerie.objects.create(
+                prefix=prefix,
+                numero_parte='NP-DEDUP',
+                modelo='MODELO-DEDUP',
+                descripcion='Descripcion deduplicada',
+                activo=True,
+                campo_identificador=PatronSerie.CAMPO_SERIE,
+            )
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:conceptos_autocomplete'),
+            {'campo': 'numero_parte', 'q': 'NP-DEDUP'},
+        )
+
+        self.assertEqual(len(response.json()['resultados']), 1)
+        self.assertEqual(response.json()['resultados'][0]['modelo'], 'MODELO-DEDUP')
+
+    def test_autocomplete_por_numero_parte_acepta_coincidencia_parcial(self):
+        documento = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
+        historial = HistorialCoincidencia.objects.create(
+            documento=documento,
+            numero_parte='XQ235U',
+            serie='QI149470',
+            modelo='ROCK L 20 DC 375',
+            descripcion='Sensor XQ',
+            usar_para_biblioteca=True,
+        )
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:conceptos_autocomplete'),
+            {'campo': 'numero_parte', 'q': 'XQ'},
+        )
+
+        resultados = response.json()['resultados']
+        self.assertEqual(len(resultados), 1)
+        self.assertEqual(resultados[0]['numero_parte'], 'XQ235U')
+        self.assertEqual(resultados[0]['id'], historial.pk)
+
+    def test_autocomplete_agrupa_precios_historicos_y_devuelve_rango(self):
+        documento = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
+        primero = Concepto.objects.create(
+            documento=documento,
+            numero_parte='NP-PRECIO',
+            modelo='MODELO-PRECIO',
+            descripcion='Descripcion precio',
+            serie='SER-001',
+            cantidad=Decimal('1'),
+            precio_unitario=Decimal('1200.00'),
+        )
+        segundo = Concepto.objects.create(
+            documento=documento,
+            numero_parte='NP-PRECIO',
+            modelo='MODELO-PRECIO',
+            descripcion='Descripcion precio',
+            serie='SER-002',
+            cantidad=Decimal('1'),
+            precio_unitario=Decimal('1300.00'),
+        )
+        for concepto in (primero, segundo):
+            HistorialCoincidencia.objects.create(
+                documento=documento,
+                concepto=concepto,
+                serie=concepto.serie,
+                numero_parte=concepto.numero_parte,
+                modelo=concepto.modelo,
+                descripcion=concepto.descripcion,
+                usar_para_biblioteca=True,
+            )
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:conceptos_autocomplete'),
+            {'campo': 'numero_parte', 'q': 'NP-PRECIO'},
+        )
+
+        resultado = response.json()['resultados']
+        self.assertEqual(len(resultado), 1)
+        self.assertEqual(resultado[0]['precio_sugerido'], '1300.00')
+        self.assertEqual(resultado[0]['precio_min'], '1200.00')
+        self.assertEqual(resultado[0]['precio_max'], '1300.00')
+
     def test_sugerencias_no_usan_historial_fuera_de_biblioteca(self):
         documento = self._crear_documento(status=DocumentoConceptos.STATUS_CONFIRMADO)
         historial = self._crear_historial_sugerencia(

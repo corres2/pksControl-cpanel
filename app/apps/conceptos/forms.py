@@ -14,6 +14,8 @@ class ConceptoForm(forms.ModelForm):
     def __init__(self, *args, documento=None, **kwargs):
         self.documento = documento
         super().__init__(*args, **kwargs)
+        for nombre in ('numero_parte', 'serie', 'modelo', 'descripcion', 'precio_unitario'):
+            self.fields[nombre].widget.attrs['autocomplete'] = 'off'
         if not self.is_bound and not (self.instance and self.instance.pk):
             self.fields['cantidad'].initial = '1'
             self.fields['precio_unitario'].initial = '0'

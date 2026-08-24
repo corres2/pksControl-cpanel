@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
@@ -7,7 +8,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.catalogos.models import NumeroParte
 from apps.conceptos.exportacion import exportar_documento_conceptos_docx
@@ -22,6 +23,7 @@ from apps.conceptos.models import (
     DocumentoConceptos,
     HistorialCoincidencia,
     PatronSerie,
+    normalizar_texto,
     registrar_historial_concepto,
 )
 
@@ -31,6 +33,7 @@ ACCION_BUSCAR_SERIE = 'buscar_serie'
 ACCION_BUSCAR_HISTORIAL = 'buscar_historial'
 ACCION_USAR_SUGERENCIA = 'usar_sugerencia'
 SESSION_IMPORTACION_PREFIX = 'conceptos_importacion_'
+AUTOCOMPLETE_MIN_CHARS = 2
 
 
 @permission_required('conceptos.view_documentoconceptos')
@@ -463,6 +466,64 @@ def _es_ajax(request):
     return request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
 
+@require_GET
+@permission_required('conceptos.change_documentoconceptos')
+def conceptos_autocomplete(request):
+    campo = request.GET.get('campo', '').strip()
+    termino = request.GET.get('q', '').strip()
+    if campo not in {'numero_parte', 'serie', 'modelo'} or len(termino) < AUTOCOMPLETE_MIN_CHARS:
+        return JsonResponse({'ok': True, 'resultados': []})
+
+    termino_normalizado = termino.upper()
+    if campo == 'serie':
+        sugerencias = _buscar_sugerencias_patron_por_serie(termino_normalizado)
+        sugerencias += _buscar_sugerencias_historial({'numero_parte': '', 'serie': termino_normalizado})
+    elif campo == 'numero_parte':
+        sugerencias = _buscar_sugerencias_patron_por_numero_parte(termino_normalizado)
+        sugerencias += _buscar_sugerencias_historial(
+            {'numero_parte': termino_normalizado, 'serie': ''},
+            numero_parte_parcial=True,
+        )
+    else:
+        sugerencias = _buscar_sugerencias_patron_por_modelo(termino_normalizado)
+        sugerencias += _buscar_sugerencias_historial_por_modelo(termino_normalizado)
+
+    resultados = _deduplicar_sugerencias(sugerencias)
+    return JsonResponse({'ok': True, 'resultados': resultados})
+
+
+def _deduplicar_sugerencias(sugerencias):
+    agrupadas = {}
+    for sugerencia in sugerencias:
+        clave = tuple(
+            normalizar_texto(sugerencia.get(campo, ''))
+            for campo in ('numero_parte', 'modelo', 'descripcion')
+        )
+        grupo = agrupadas.setdefault(clave, {'sugerencia': sugerencia, 'precios': []})
+        precio = sugerencia.get('precio_unitario')
+        if precio not in (None, ''):
+            grupo['precios'].append(str(precio))
+
+    resultados = []
+    for grupo in agrupadas.values():
+        sugerencia = grupo['sugerencia'].copy()
+        precios = grupo['precios']
+        sugerencia.pop('precio_unitario', None)
+        sugerencia['precio_sugerido'] = _formatear_precio(precios[0]) if precios else ''
+        sugerencia['precio_min'] = _formatear_precio(min(precios, key=Decimal)) if precios else ''
+        sugerencia['precio_max'] = _formatear_precio(max(precios, key=Decimal)) if precios else ''
+        sugerencia['muestra'] = sugerencia.get('sample_size') or len(precios)
+        sugerencia['evidencias'] = len(precios)
+        resultados.append(sugerencia)
+        if len(resultados) == 10:
+            break
+    return resultados
+
+
+def _formatear_precio(precio):
+    return f'{Decimal(str(precio)):.2f}'
+
+
 def _normalizar_ordenes(documento):
     conceptos = list(documento.conceptos.order_by('orden', 'pk'))
     for posicion, concepto in enumerate(conceptos, start=1):
@@ -577,27 +638,51 @@ def _aplicar_numero_parte_activo(request, datos, avisar_sin_numero=False):
     return True
 
 
-def _buscar_sugerencias_historial(datos):
+def _buscar_sugerencias_historial(datos, numero_parte_parcial=False):
     numero_parte = datos.get('numero_parte', '').strip().upper()
     serie = datos.get('serie', '').strip().upper()
     if not numero_parte and not serie:
         return []
 
-    queryset = HistorialCoincidencia.objects.filter(
-        usar_para_biblioteca=True,
-    ).filter(
-        Q(documento__isnull=True)
-        | Q(documento__status=DocumentoConceptos.STATUS_CONFIRMADO)
-    ).exclude(
+    queryset = _historial_confiable_queryset().select_related('concepto').exclude(
         numero_parte='',
         serie='',
         descripcion='',
     )
     if numero_parte:
-        queryset = queryset.filter(numero_parte__iexact=numero_parte)
+        if numero_parte_parcial:
+            queryset = queryset.filter(numero_parte__icontains=numero_parte)
+        else:
+            queryset = queryset.filter(numero_parte__iexact=numero_parte)
     if serie:
         queryset = queryset.filter(serie__iexact=serie)
 
+    return [
+        _sugerencia_desde_historial(historial)
+        for historial in queryset.order_by('-created_at', '-id')[:10]
+    ]
+
+
+def _historial_confiable_queryset():
+    return HistorialCoincidencia.objects.filter(
+        usar_para_biblioteca=True,
+    ).filter(
+        Q(documento__isnull=True)
+        | Q(documento__status=DocumentoConceptos.STATUS_CONFIRMADO)
+    ).filter(
+        Q(concepto__isnull=True)
+        | Q(concepto__documento__status=DocumentoConceptos.STATUS_CONFIRMADO)
+    )
+
+
+def _buscar_sugerencias_historial_por_modelo(modelo):
+    queryset = _historial_confiable_queryset().filter(
+        modelo__icontains=modelo,
+    ).exclude(
+        numero_parte='',
+        serie='',
+        descripcion='',
+    )
     return [
         _sugerencia_desde_historial(historial)
         for historial in queryset.order_by('-created_at', '-id')[:10]
@@ -613,7 +698,11 @@ def _sugerencia_desde_historial(historial):
         'serie': historial.serie,
         'modelo': historial.modelo,
         'descripcion': historial.descripcion,
-        'precio_unitario': '',
+        'precio_unitario': (
+            historial.concepto.precio_unitario
+            if historial.concepto_id and historial.concepto
+            else ''
+        ),
         'prefix': '',
         'sample_size': '',
         'confidence': '',
@@ -634,8 +723,20 @@ def _buscar_sugerencias_patron_por_numero_parte(numero_parte):
     patrones = PatronSerie.objects.filter(
         activo=True,
         campo_identificador=PatronSerie.CAMPO_SERIE,
-        numero_parte__iexact=numero_parte,
+        numero_parte__icontains=numero_parte,
     ).order_by('prefix', '-updated_at', '-id')
+    return [_sugerencia_desde_patron(patron) for patron in patrones[:10]]
+
+
+def _buscar_sugerencias_patron_por_modelo(modelo):
+    modelo = (modelo or '').strip().upper()
+    if not modelo:
+        return []
+    patrones = PatronSerie.objects.filter(
+        activo=True,
+        campo_identificador=PatronSerie.CAMPO_SERIE,
+        modelo__icontains=modelo,
+    ).order_by('-updated_at', '-id')
     return [_sugerencia_desde_patron(patron) for patron in patrones[:10]]
 
 
@@ -655,6 +756,15 @@ def _buscar_sugerencias_patron_por_serie(serie):
 
 
 def _sugerencia_desde_patron(patron):
+    precios = list(
+        _historial_confiable_queryset().filter(
+            numero_parte=patron.numero_parte,
+            modelo=patron.modelo,
+            descripcion=patron.descripcion,
+            serie__startswith=patron.prefix,
+            concepto__precio_unitario__isnull=False,
+        ).values_list('concepto__precio_unitario', flat=True)[:10]
+    )
     return {
         'id': '',
         'origen': 'patron',
@@ -663,7 +773,7 @@ def _sugerencia_desde_patron(patron):
         'serie': '',
         'modelo': patron.modelo,
         'descripcion': patron.descripcion,
-        'precio_unitario': '',
+        'precio_unitario': precios[0] if precios else '',
         'prefix': patron.prefix,
         'sample_size': patron.sample_size,
         'confidence': patron.confidence,

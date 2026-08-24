@@ -10,6 +10,7 @@ from apps.conceptos.views import (
     conceptos_importar,
     conceptos_importar_cancelar,
     conceptos_importar_confirmar,
+    conceptos_autocomplete,
     documento_cancelar,
     documento_confirmar,
     documento_create,
@@ -23,6 +24,7 @@ app_name = 'conceptos'
 
 urlpatterns = [
     path('', documentos_list, name='documentos_list'),
+    path('autocomplete/', conceptos_autocomplete, name='conceptos_autocomplete'),
     path('nuevo/', documento_create, name='documento_create'),
     path('<int:pk>/', documento_detail, name='documento_detail'),
     path('<int:pk>/exportar-word/', documento_exportar_word, name='documento_exportar_word'),

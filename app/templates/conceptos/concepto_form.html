@@ -11,6 +11,41 @@
     .concepto-form .page-actions { margin-top: 0; }
     .concepto-form textarea { min-height: 72px; }
     .concepto-form .table-actions .btn { font-size: 13px; padding: 5px 8px; }
+    .concepto-form .fallback-icon { display: none; }
+    .concepto-form .fallback-search { font-size: 12px; padding: 3px 6px; color: #64748b; }
+    .concepto-form .autocomplete-control { position: relative; overflow: visible; }
+    .concepto-form .autocomplete-control .suggestions-dropdown {
+        position: absolute;
+        z-index: 20;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        display: none;
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 4px;
+        background: #fff;
+        border: 1px solid #d6dde8;
+        border-radius: 6px;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, .14);
+    }
+    .concepto-form .suggestions-dropdown.is-visible { display: block; }
+    .concepto-form .suggestion-option {
+        display: block;
+        width: 100%;
+        padding: 7px 8px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #172033;
+        text-align: left;
+        cursor: pointer;
+    }
+    .concepto-form .suggestion-option:hover,
+    .concepto-form .suggestion-option:focus { background: #f1f5f9; }
+    .concepto-form .suggestion-option small { display: block; color: #64748b; }
+    .concepto-form .autocomplete-control { overflow: visible; }
+    .concepto-form .card { overflow: visible; }
 </style>
 <div class="concepto-form">
 <div class="page-header">
@@ -27,14 +62,17 @@
     {% if form.non_field_errors %}
         <div class="alert alert-error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form class="form-grid" method="post">
+    <form class="form-grid" method="post" autocomplete="off">
         {% csrf_token %}
         <div class="card-grid">
             <div class="form-field">
                 <label for="{{ form.numero_parte.id_for_label }}">{{ form.numero_parte.label }}</label>
-                <div class="table-actions">
-                    {{ form.numero_parte }}
-                    <button class="btn btn-secondary" type="submit" name="accion" value="buscar_numero_parte" title="Buscar en catálogo y patrones" aria-label="Buscar número de parte">🔍</button>
+                <div class="autocomplete-control" data-autocomplete-field="numero_parte" data-autocomplete-url="{% url 'conceptos:conceptos_autocomplete' %}">
+                    <div class="table-actions">
+                        {{ form.numero_parte }}
+                        <button class="btn btn-secondary fallback-icon" type="submit" name="accion" value="buscar_numero_parte" title="Búsqueda manual de catálogo y patrones" aria-label="Buscar número de parte">🔍</button>
+                    </div>
+                    <div class="suggestions-dropdown" data-autocomplete-panel role="listbox" aria-label="Sugerencias de número de parte"></div>
                 </div>
                 {% if form.numero_parte.errors %}
                     <div class="field-error">{{ form.numero_parte.errors }}</div>
@@ -42,9 +80,12 @@
             </div>
             <div class="form-field">
                 <label for="{{ form.serie.id_for_label }}">{{ form.serie.label }}</label>
-                <div class="table-actions">
-                    {{ form.serie }}
-                    <button class="btn btn-secondary" type="submit" name="accion" value="buscar_serie" title="Buscar patrón por serie" aria-label="Buscar patrón por serie">🔍</button>
+                <div class="autocomplete-control" data-autocomplete-field="serie" data-autocomplete-url="{% url 'conceptos:conceptos_autocomplete' %}">
+                    <div class="table-actions">
+                        {{ form.serie }}
+                        <button class="btn btn-secondary fallback-icon" type="submit" name="accion" value="buscar_serie" title="Búsqueda manual de patrón por serie" aria-label="Buscar patrón por serie">🔍</button>
+                    </div>
+                    <div class="suggestions-dropdown" data-autocomplete-panel role="listbox" aria-label="Sugerencias de serie"></div>
                 </div>
                 {% if form.serie.errors %}
                     <div class="field-error">{{ form.serie.errors }}</div>
@@ -52,7 +93,10 @@
             </div>
             <div class="form-field">
                 <label for="{{ form.modelo.id_for_label }}">{{ form.modelo.label }}</label>
-                {{ form.modelo }}
+                <div class="autocomplete-control" data-autocomplete-field="modelo" data-autocomplete-url="{% url 'conceptos:conceptos_autocomplete' %}">
+                    {{ form.modelo }}
+                    <div class="suggestions-dropdown" data-autocomplete-panel role="listbox" aria-label="Sugerencias de modelo"></div>
+                </div>
                 {% if form.modelo.errors %}
                     <div class="field-error">{{ form.modelo.errors }}</div>
                 {% endif %}
@@ -87,11 +131,11 @@
             {% endif %}
         </div>
         <div class="page-actions">
-            <button class="btn btn-secondary" type="submit" name="accion" value="buscar_historial">Buscar historial</button>
-        </div>
-        <div class="page-actions">
             <button class="btn btn-primary" type="submit" name="accion" value="guardar">Guardar</button>
             <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Cancelar</a>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-secondary fallback-search" type="submit" name="accion" value="buscar_historial">Buscar historial</button>
         </div>
     </form>
 
@@ -119,7 +163,14 @@
                                 <td>{{ sugerencia.serie|default:"-" }}</td>
                                 <td>{{ sugerencia.modelo|default:"-" }}</td>
                                 <td>{{ sugerencia.descripcion|default:"-" }}</td>
-                                <td>{{ sugerencia.precio_unitario|default:"-" }}</td>
+                                <td>
+                                    {% with precio=sugerencia.precio_sugerido|default:sugerencia.precio_unitario %}
+                                        {% if precio %}Precio sugerido: {{ precio }}{% else %}-{% endif %}
+                                    {% endwith %}
+                                    {% if sugerencia.precio_min and sugerencia.precio_min != sugerencia.precio_max %}
+                                        <div class="muted">Rango: {{ sugerencia.precio_min }}–{{ sugerencia.precio_max }}</div>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <span class="badge">{{ sugerencia.origen_label }}</span>
                                     {% if sugerencia.prefix %}
@@ -140,7 +191,7 @@
                                         <input type="hidden" name="modelo" value="{{ form.modelo.value|default_if_none:'' }}">
                                         <input type="hidden" name="descripcion" value="{{ form.descripcion.value|default_if_none:'' }}">
                                         <input type="hidden" name="cantidad" value="{{ form.cantidad.value|default_if_none:'' }}">
-                                        <input type="hidden" name="precio_unitario" value="{{ form.precio_unitario.value|default_if_none:'' }}">
+                                        <input type="hidden" name="precio_unitario" value="{{ sugerencia.precio_sugerido|default:sugerencia.precio_unitario|default:form.precio_unitario.value|default_if_none:'' }}">
                                         <input type="hidden" name="orden" value="{{ form.orden.value|default_if_none:'' }}">
                                         <button class="btn btn-secondary" type="submit" name="accion" value="usar_sugerencia">Usar sugerencia</button>
                                     </form>
@@ -154,4 +205,88 @@
     {% endif %}
 </div>
  </div>
+<script>
+(() => {
+    const controls = document.querySelectorAll('.autocomplete-control[data-autocomplete-field]');
+    const closePanels = (except) => controls.forEach((control) => {
+        const panel = control.querySelector('[data-autocomplete-panel]');
+        if (panel !== except) panel.classList.remove('is-visible');
+    });
+    const focusPrice = () => {
+        const price = document.getElementById('{{ form.precio_unitario.id_for_label }}');
+        if (price) { price.focus(); price.select(); }
+    };
+    const showMessage = (panel, message) => {
+        panel.textContent = message;
+        panel.classList.add('is-visible');
+    };
+    controls.forEach((control) => {
+        const input = control.querySelector('input');
+        const panel = control.querySelector('[data-autocomplete-panel]');
+        const url = control.dataset.autocompleteUrl;
+        let timer;
+        let requestId = 0;
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            const value = input.value.trim();
+            if (value.length < 2) { panel.classList.remove('is-visible'); return; }
+            timer = setTimeout(async () => {
+                const currentRequest = ++requestId;
+                closePanels(panel);
+                showMessage(panel, 'Buscando...');
+                try {
+                    const response = await fetch(`${url}?campo=${encodeURIComponent(control.dataset.autocompleteField)}&q=${encodeURIComponent(value)}`, { credentials: 'same-origin' });
+                    const data = await response.json();
+                    if (currentRequest !== requestId) return;
+                    if (!response.ok || !data.ok) throw new Error('respuesta inválida');
+                    panel.replaceChildren();
+                    if (!data.resultados.length) { showMessage(panel, 'Sin sugerencias.'); return; }
+                    data.resultados.forEach((item) => {
+                        const option = document.createElement('button');
+                        option.type = 'button';
+                        option.className = 'suggestion-option';
+                        option.setAttribute('role', 'option');
+                        const title = document.createElement('strong');
+                        title.textContent = `${item.numero_parte || 'Sin número de parte'} · ${item.modelo || 'Sin modelo'}`;
+                        const detail = document.createElement('small');
+                        detail.textContent = `${item.descripcion || 'Sin descripción'} · ${item.origen_label || item.origen}`;
+                        option.append(title, detail);
+                        if (item.precio_sugerido) {
+                            const price = document.createElement('small');
+                            price.textContent = `Precio sugerido: ${item.precio_sugerido}`;
+                            if (item.precio_min && item.precio_min !== item.precio_max) price.textContent += ` · Rango: ${item.precio_min}–${item.precio_max}`;
+                            option.appendChild(price);
+                        }
+                        option.addEventListener('click', () => {
+                            const number = document.getElementById('{{ form.numero_parte.id_for_label }}');
+                            const serie = document.getElementById('{{ form.serie.id_for_label }}');
+                            const modelo = document.getElementById('{{ form.modelo.id_for_label }}');
+                            const descripcion = document.getElementById('{{ form.descripcion.id_for_label }}');
+                            const precio = document.getElementById('{{ form.precio_unitario.id_for_label }}');
+                            if (item.numero_parte && number) number.value = item.numero_parte;
+                            if (item.serie && serie) serie.value = item.serie;
+                            else if (control.dataset.autocompleteField === 'serie' && serie) serie.value = value;
+                            if (item.modelo && modelo) modelo.value = item.modelo;
+                            if (item.descripcion && descripcion) descripcion.value = item.descripcion;
+                            if (item.precio_sugerido && precio) precio.value = item.precio_sugerido;
+                            panel.classList.remove('is-visible');
+                            focusPrice();
+                        });
+                        panel.appendChild(option);
+                    });
+                    panel.classList.add('is-visible');
+                } catch (error) {
+                    if (currentRequest === requestId) showMessage(panel, 'No se pudieron cargar sugerencias.');
+                }
+            }, 300);
+        });
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') panel.classList.remove('is-visible');
+        });
+    });
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.autocomplete-control')) closePanels(null);
+    });
+})();
+</script>
 {% endblock %}
