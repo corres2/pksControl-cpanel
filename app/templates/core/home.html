@@ -42,15 +42,15 @@
 
     {% if perms.catalogos.view_claveproductoserviciosat %}
         <a class="quick-card" href="{% url 'catalogos:sat_list' %}">
-            <strong>Claves SAT</strong>
-            <span class="muted">Consulta de claves producto o servicio.</span>
+            <strong>Catálogo Carta Porte</strong>
+            <span class="muted">Consulta de conceptos Carta Porte.</span>
         </a>
     {% endif %}
 
     {% if perms.catalogos.puede_importar_claves_sat %}
         <a class="quick-card" href="{% url 'catalogos:importar_sat' %}">
-            <strong>Importar claves SAT</strong>
-            <span class="muted">Carga CSV del catalogo SAT.</span>
+            <strong>Importar Carta Porte</strong>
+            <span class="muted">Carga el catálogo de conceptos Carta Porte.</span>
         </a>
     {% endif %}
 

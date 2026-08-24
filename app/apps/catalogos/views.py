@@ -164,41 +164,21 @@ def descargar_plantilla_numeros_parte_xlsx(request):
 @permission_required('catalogos.puede_importar_claves_sat')
 def descargar_plantilla_sat(request):
     return _crear_csv_descarga(
-        'plantilla_sat_claves_producto_servicio.csv',
+        'plantilla_catalogo_carta_porte.csv',
         [
-            [
-                'c_ClaveProdServ',
-                'Descripción',
-                'Incluir IVA trasladado',
-                'Incluir IEPS trasladado',
-                'Complemento que debe incluir',
-                'FechaInicioVigencia',
-                'FechaFinVigencia',
-                'Estímulo Franja Fronteriza',
-                'Palabras similares',
-            ],
-            [
-                '10101500',
-                'Animales vivos de granja',
-                'Opcional',
-                'Opcional',
-                '',
-                '1/1/2022',
-                '',
-                '1',
-                'Publico en general',
-            ],
-            [
-                '10101501',
-                'Gatos vivos',
-                'Opcional',
-                'Opcional',
-                '',
-                '1/1/2022',
-                '',
-                '1',
-                '',
-            ],
+            ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'],
+            ['01010101', 'Ejemplo', '', '0', '', ''],
+        ],
+    )
+
+
+@permission_required('catalogos.puede_importar_claves_sat')
+def descargar_plantilla_sat_xlsx(request):
+    return _crear_xlsx_descarga(
+        'plantilla_catalogo_carta_porte.xlsx',
+        [
+            ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'],
+            ['01010101', 'Ejemplo', '', '0', '', ''],
         ],
     )
 
@@ -418,41 +398,46 @@ def sat_list(request):
 def exportar_sat_csv(request):
     queryset, _q, _iva, _ieps, _vigente = _claves_sat_filtradas(request)
     response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = 'attachment; filename="catalogo_sat_filtrado.csv"'
+    response['Content-Disposition'] = 'attachment; filename="catalogo_carta_porte_filtrado.csv"'
     response.write('\ufeff')
 
     writer = csv.writer(response)
     writer.writerow(
-        [
-            'clave',
-            'descripcion',
-            'incluir_iva_trasladado',
-            'incluir_ieps_trasladado',
-            'complemento_que_debe_incluir',
-            'fecha_inicio_vigencia',
-            'fecha_fin_vigencia',
-            'estimulo_franja_fronteriza',
-            'palabras_similares',
-            'updated_at',
-        ]
+        ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia']
     )
     for item in queryset:
         writer.writerow(
             [
                 item.clave,
                 item.descripcion,
-                item.incluir_iva_trasladado,
-                item.incluir_ieps_trasladado,
+                item.palabras_similares,
                 item.complemento_que_debe_incluir,
                 _formatear_fecha_simple_csv(item.fecha_inicio_vigencia),
                 _formatear_fecha_simple_csv(item.fecha_fin_vigencia),
-                item.estimulo_franja_fronteriza,
-                item.palabras_similares,
-                _formatear_fecha_csv(item.updated_at),
             ]
         )
 
     return response
+
+
+@permission_required('catalogos.view_claveproductoserviciosat')
+def exportar_sat_xlsx(request):
+    queryset, _q, _iva, _ieps, _vigente = _claves_sat_filtradas(request)
+    filas = [
+        ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia']
+    ]
+    filas.extend(
+        [
+            item.clave,
+            item.descripcion,
+            item.palabras_similares,
+            item.complemento_que_debe_incluir,
+            _formatear_fecha_simple_csv(item.fecha_inicio_vigencia),
+            _formatear_fecha_simple_csv(item.fecha_fin_vigencia),
+        ]
+        for item in queryset
+    )
+    return _crear_xlsx_descarga('catalogo_carta_porte_filtrado.xlsx', filas)
 
 
 @permission_required('catalogos.puede_importar_numeroparte')
@@ -527,6 +512,13 @@ def importar_sat(request):
                 resultado,
             )
             _agregar_mensaje_resultado(request, resultado)
+        except ValueError as exc:
+            _registrar_carga_fallida(
+                CargaCatalogo.TIPO_SAT_CLAVE_PRODUCTO_SERVICIO,
+                archivo,
+                request.user,
+            )
+            messages.error(request, str(exc))
         except Exception:
             _registrar_carga_fallida(
                 CargaCatalogo.TIPO_SAT_CLAVE_PRODUCTO_SERVICIO,

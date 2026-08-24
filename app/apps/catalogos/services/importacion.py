@@ -127,24 +127,31 @@ def guardar_numeros_parte_desde_filas(filas):
     return resultado
 
 
+_ENCABEZADOS_CARTA_PORTE = {
+    'clave': {'c_claveprodserv', 'cclaveprodserv', 'clave'},
+    'descripcion': {'descripcion'},
+    'palabras_similares': {'palabras_similares', 'palabrassimilares'},
+    'material_peligroso': {'material_peligroso', 'materialpeligroso'},
+    'fecha_inicio_vigencia': {'fechainiciovigencia', 'fecha_inicio_vigencia'},
+    'fecha_fin_vigencia': {'fechafinvigencia', 'fecha_fin_vigencia'},
+    'incluir_iva_trasladado': {'incluir_iva_trasladado'},
+    'incluir_ieps_trasladado': {'incluir_ieps_trasladado'},
+    'complemento_que_debe_incluir': {'complemento_que_debe_incluir'},
+    'estimulo_franja_fronteriza': {'estimulo_franja_fronteriza'},
+}
+
+
 def importar_claves_sat_csv(archivo):
     resultado = _resultado_base()
-    datos_iniciados = False
+    filas = _leer_filas_carta_porte(archivo)
 
-    for fila_numero, fila in _leer_csv(archivo):
-        valores = _normalizar_fila(fila, 9)
-        clave = valores[0]
-
-        if not datos_iniciados:
-            if not _parece_clave_sat(clave):
-                continue
-            datos_iniciados = True
-
-        if not any(valores):
+    for fila_numero, fila in filas:
+        if not any(str(valor or '').strip() for valor in fila.values()):
             continue
 
         resultado['procesadas'] += 1
 
+        clave = _normalizar_clave_carta_porte(fila.get('clave'))
         if not clave:
             _agregar_error(resultado, fila_numero, 'clave es requerida.')
             continue
@@ -152,7 +159,7 @@ def importar_claves_sat_csv(archivo):
             _agregar_error(resultado, fila_numero, 'clave debe ser numerica de 8 digitos.')
             continue
 
-        descripcion = valores[1]
+        descripcion = str(fila.get('descripcion') or '').strip()
         if not descripcion:
             _agregar_error(resultado, fila_numero, 'descripcion es requerida.')
             continue
@@ -161,18 +168,112 @@ def importar_claves_sat_csv(archivo):
             clave=clave,
             defaults={
                 'descripcion': descripcion,
-                'incluir_iva_trasladado': valores[2],
-                'incluir_ieps_trasladado': valores[3],
-                'complemento_que_debe_incluir': valores[4],
-                'fecha_inicio_vigencia': _parsear_fecha(valores[5]),
-                'fecha_fin_vigencia': _parsear_fecha(valores[6]),
-                'estimulo_franja_fronteriza': valores[7],
-                'palabras_similares': valores[8],
+                'incluir_iva_trasladado': fila.get('incluir_iva_trasladado', ''),
+                'incluir_ieps_trasladado': fila.get('incluir_ieps_trasladado', ''),
+                'complemento_que_debe_incluir': fila.get('material_peligroso') or fila.get('complemento_que_debe_incluir', ''),
+                'fecha_inicio_vigencia': _parsear_fecha(fila.get('fecha_inicio_vigencia')),
+                'fecha_fin_vigencia': _parsear_fecha(fila.get('fecha_fin_vigencia')),
+                'estimulo_franja_fronteriza': fila.get('estimulo_franja_fronteriza', ''),
+                'palabras_similares': fila.get('palabras_similares', ''),
             },
         )
         _contar_guardado(resultado, creado)
 
     return resultado
+
+
+def _leer_filas_carta_porte(archivo):
+    extension = getattr(archivo, 'name', '').lower()
+    if extension.endswith('.xlsx'):
+        return _leer_filas_carta_porte_xlsx(archivo)
+
+    filas = list(_leer_csv(archivo))
+    encabezados = _encontrar_encabezados_carta_porte(
+        (numero, fila) for numero, fila in filas
+    )
+    if encabezados:
+        return _filas_por_encabezados(filas[encabezados[0] - 1:], encabezados[1])
+
+    # Compatibilidad con el CSV SAT histórico sin encabezados oficiales.
+    return (
+        (numero, {
+            'clave': valores[0] if valores else '',
+            'descripcion': valores[1] if len(valores) > 1 else '',
+            'incluir_iva_trasladado': valores[2] if len(valores) > 2 else '',
+            'incluir_ieps_trasladado': valores[3] if len(valores) > 3 else '',
+            'complemento_que_debe_incluir': valores[4] if len(valores) > 4 else '',
+            'fecha_inicio_vigencia': valores[5] if len(valores) > 5 else '',
+            'fecha_fin_vigencia': valores[6] if len(valores) > 6 else '',
+            'estimulo_franja_fronteriza': valores[7] if len(valores) > 7 else '',
+            'palabras_similares': valores[8] if len(valores) > 8 else '',
+        })
+        for numero, valores in filas
+        if _parece_clave_sat(str(valores[0]).strip() if valores else '')
+    )
+
+
+def _leer_filas_carta_porte_xlsx(archivo):
+    from openpyxl import load_workbook
+
+    archivo.seek(0)
+    workbook = load_workbook(archivo, read_only=True, data_only=True)
+    try:
+        if 'c_ClaveProdServCP' not in workbook.sheetnames:
+            raise ValueError('No se encontró la hoja c_ClaveProdServCP.')
+        filas = [
+            (numero, list(fila))
+            for numero, fila in enumerate(
+                workbook['c_ClaveProdServCP'].iter_rows(values_only=True), start=1
+            )
+        ]
+        encabezados = _encontrar_encabezados_carta_porte(iter(filas))
+        if not encabezados:
+            raise ValueError('No se encontraron los encabezados c_ClaveProdServ y Descripción.')
+        return _filas_por_encabezados(filas[encabezados[0] - 1:], encabezados[1])
+    finally:
+        workbook.close()
+
+
+def _encontrar_encabezados_carta_porte(filas):
+    for numero, fila in filas:
+        mapeo = {}
+        for indice, valor in enumerate(fila):
+            encabezado = _normalizar_encabezado_carta_porte(valor)
+            for nombre, alias in _ENCABEZADOS_CARTA_PORTE.items():
+                if encabezado in alias and nombre not in mapeo:
+                    mapeo[nombre] = indice
+                    break
+        if 'clave' in mapeo and 'descripcion' in mapeo:
+            return numero, mapeo
+    return None
+
+
+def _filas_por_encabezados(filas, encabezados):
+    for numero, fila in filas[1:]:
+        yield numero, {
+            nombre: _valor_fila(fila, indice)
+            for nombre, indice in encabezados.items()
+        }
+
+
+def _valor_fila(fila, indice):
+    if indice >= len(fila) or fila[indice] is None:
+        return ''
+    return fila[indice]
+
+
+def _normalizar_encabezado_carta_porte(valor):
+    texto = _sin_acentos(str(valor or '')).strip().lower()
+    return re.sub(r'[^a-z0-9]+', '_', texto).strip('_')
+
+
+def _normalizar_clave_carta_porte(valor):
+    if valor is None:
+        return ''
+    texto = str(valor).strip()
+    if texto.endswith('.0') and texto[:-2].isdigit():
+        texto = texto[:-2]
+    return texto.zfill(8) if texto.isdigit() else texto
 
 
 def _resultado_base():
@@ -289,6 +390,13 @@ def _parece_clave_sat(valor):
 def _parsear_fecha(valor):
     if not valor:
         return None
+
+    if isinstance(valor, datetime):
+        return valor.date()
+    if hasattr(valor, 'year') and hasattr(valor, 'month') and hasattr(valor, 'day'):
+        return valor
+
+    valor = str(valor).strip()
 
     for formato in ('%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y'):
         try:

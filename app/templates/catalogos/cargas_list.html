@@ -63,7 +63,13 @@
                 {% for carga in page_obj %}
                     <tr>
                         <td>{{ carga.created_at|date:"Y-m-d H:i" }}</td>
-                        <td>{{ carga.tipo_catalogo }}</td>
+                        <td>
+                            {% if carga.tipo_catalogo == 'sat_clave_producto_servicio' %}
+                                Catálogo Carta Porte
+                            {% else %}
+                                {{ carga.tipo_catalogo }}
+                            {% endif %}
+                        </td>
                         <td>{{ carga.archivo_nombre }}</td>
                         <td>{{ carga.usuario|default:"" }}</td>
                         <td>{{ carga.total_procesadas }}</td>

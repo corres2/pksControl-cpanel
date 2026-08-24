@@ -25,9 +25,11 @@ from apps.catalogos.views import (
     descargar_plantilla_numeros_parte,
     descargar_plantilla_numeros_parte_xlsx,
     descargar_plantilla_sat,
+    descargar_plantilla_sat_xlsx,
     exportar_cargas_csv,
     exportar_numeros_parte_csv,
     exportar_sat_csv,
+    exportar_sat_xlsx,
     importar_numeros_parte,
     importar_sat,
     numeros_parte_list,
@@ -362,6 +364,46 @@ class ImportarClavesSATCSVTests(SimpleTestCase):
 
         self.assertEqual(resultado['procesadas'], 2)
         self.assertEqual(manager.update_or_create.call_count, 2)
+
+    def test_importa_xlsx_desde_hoja_oficial_y_por_nombre(self):
+        from datetime import datetime
+        from openpyxl import Workbook
+
+        workbook = Workbook()
+        hoja = workbook.active
+        hoja.title = 'c_ClaveProdServCP'
+        hoja.append(['Metadatos'])
+        hoja.append([])
+        hoja.append(['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'])
+        hoja.append([1010101, 'Descripción oficial', 'ejemplo', 1, datetime(2026, 1, 2), None])
+        contenido = BytesIO()
+        workbook.save(contenido)
+        contenido.seek(0)
+        archivo = SimpleUploadedFile('carta_porte.xlsx', contenido.read())
+
+        with patch('apps.catalogos.services.importacion.ClaveProductoServicioSAT.objects') as manager:
+            manager.update_or_create.return_value = (SimpleNamespace(), True)
+            resultado = importar_claves_sat_csv(archivo)
+
+        self.assertEqual(resultado['errores'], [])
+        self.assertEqual(resultado['procesadas'], 1)
+        defaults = manager.update_or_create.call_args.kwargs['defaults']
+        self.assertEqual(manager.update_or_create.call_args.kwargs['clave'], '01010101')
+        self.assertEqual(defaults['descripcion'], 'Descripción oficial')
+        self.assertEqual(defaults['complemento_que_debe_incluir'], 1)
+        self.assertEqual(defaults['fecha_inicio_vigencia'].isoformat(), '2026-01-02')
+
+    def test_xlsx_sin_hoja_oficial_falla_con_mensaje_claro(self):
+        from openpyxl import Workbook
+
+        workbook = Workbook()
+        workbook.active.title = 'Otra hoja'
+        contenido = BytesIO()
+        workbook.save(contenido)
+        contenido.seek(0)
+
+        with self.assertRaisesMessage(ValueError, 'No se encontró la hoja c_ClaveProdServCP.'):
+            importar_claves_sat_csv(SimpleUploadedFile('carta_porte.xlsx', contenido.read()))
 
 
 class CrearGruposCatalogosCommandTests(TestCase):
@@ -1262,10 +1304,10 @@ class CatalogosViewsTests(SimpleTestCase):
 
         contenido = response.content.decode('utf-8-sig')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('filename="catalogo_sat_filtrado.csv"', response['Content-Disposition'])
+        self.assertIn('filename="catalogo_carta_porte_filtrado.csv"', response['Content-Disposition'])
         self.assertTrue(queryset.filter_called)
-        self.assertIn('clave,descripcion,incluir_iva_trasladado', contenido)
-        self.assertIn('10101500,Animales vivos de granja,Opcional,Opcional', contenido)
+        self.assertIn('c_ClaveProdServ,Descripción,Palabras similares,Material Peligroso', contenido)
+        self.assertIn('10101500,Animales vivos de granja,Publico en general', contenido)
         self.assertNotIn('10101600', contenido)
 
     def test_importar_numeros_parte_genera_preview_sin_crear_carga(self):
@@ -1706,7 +1748,7 @@ class CatalogosViewsTests(SimpleTestCase):
         )
 
         contenido = response.content.decode('utf-8')
-        self.assertIn('Claves SAT', contenido)
+        self.assertIn('Catálogo Carta Porte', contenido)
         self.assertNotIn('Numeros de parte</a>', contenido)
 
     def test_usuario_con_permiso_historial_ve_enlace_correspondiente(self):
@@ -1728,8 +1770,8 @@ class CatalogosViewsTests(SimpleTestCase):
         contenido = response.content.decode('utf-8')
         self.assertIn('Numeros de parte', contenido)
         self.assertIn('Importar numeros de parte', contenido)
-        self.assertIn('Claves SAT', contenido)
-        self.assertIn('Importar claves SAT', contenido)
+        self.assertIn('Catálogo Carta Porte', contenido)
+        self.assertIn('Importar Carta Porte', contenido)
         self.assertIn('Historial de cargas', contenido)
 
     def test_plantilla_numeros_parte_requiere_login(self):
@@ -1784,7 +1826,7 @@ class CatalogosViewsTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            'filename="plantilla_sat_claves_producto_servicio.csv"',
+            'filename="plantilla_catalogo_carta_porte.csv"',
             response['Content-Disposition'],
         )
-        self.assertIn('c_ClaveProdServ,Descripción,Incluir IVA trasladado', contenido)
+        self.assertIn('c_ClaveProdServ,Descripción,Palabras similares,Material Peligroso', contenido)

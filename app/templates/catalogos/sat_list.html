@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Catalogo SAT - Sistema Django{% endblock %}
+{% block title %}Catálogo Carta Porte - Sistema Django{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Claves SAT producto/servicio</h1>
-        <p class="muted">Consulta el catalogo SAT de claves de producto o servicio.</p>
+        <h1 class="page-title">Catálogo de conceptos Carta Porte</h1>
+        <p class="muted">Consulta conceptos, material peligroso y vigencia.</p>
     </div>
     <div class="page-actions">
         {% if perms.catalogos.view_claveproductoserviciosat %}
@@ -14,9 +14,12 @@
                 Exportar CSV
             </a>
         {% endif %}
+        {% if perms.catalogos.view_claveproductoserviciosat %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:exportar_sat_xlsx' %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar XLSX</a>
+        {% endif %}
         {% if perms.catalogos.puede_importar_claves_sat %}
             <a class="btn btn-secondary" href="{% url 'catalogos:importar_sat' %}">
-                Importar CSV
+                Importar CSV/XLSX
             </a>
         {% endif %}
     </div>
@@ -30,12 +33,12 @@
                 <input id="q" type="search" name="q" value="{{ q }}" placeholder="Clave, descripcion o palabras similares">
             </div>
             <div class="form-field">
-                <label for="iva">IVA trasladado</label>
-                <input id="iva" type="search" name="iva" value="{{ iva }}" placeholder="IVA">
+                <label for="iva">Material peligroso</label>
+                <input id="iva" type="search" name="iva" value="{{ iva }}" placeholder="0 o 1">
             </div>
             <div class="form-field">
-                <label for="ieps">IEPS trasladado</label>
-                <input id="ieps" type="search" name="ieps" value="{{ ieps }}" placeholder="IEPS">
+                <label for="ieps">Palabras similares</label>
+                <input id="ieps" type="search" name="ieps" value="{{ ieps }}" placeholder="Texto relacionado">
             </div>
             <div class="form-field">
                 <label for="vigente">Vigencia</label>
@@ -58,9 +61,9 @@
             <thead>
                 <tr>
                     <th>Clave</th>
-                    <th>Descripcion</th>
-                    <th>IVA trasladado</th>
-                    <th>IEPS trasladado</th>
+                    <th>Descripción</th>
+                    <th>Palabras similares</th>
+                    <th>Material peligroso</th>
                     <th>Inicio vigencia</th>
                     <th>Fin vigencia</th>
                 </tr>
@@ -70,14 +73,14 @@
                     <tr>
                         <td>{{ item.clave }}</td>
                         <td>{{ item.descripcion }}</td>
-                        <td>{{ item.incluir_iva_trasladado|default:"" }}</td>
-                        <td>{{ item.incluir_ieps_trasladado|default:"" }}</td>
+                        <td>{{ item.palabras_similares|default:"" }}</td>
+                        <td>{{ item.complemento_que_debe_incluir|default:"" }}</td>
                         <td>{{ item.fecha_inicio_vigencia|date:"Y-m-d" }}</td>
                         <td>{{ item.fecha_fin_vigencia|date:"Y-m-d" }}</td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="6">No hay registros.</td>
+                        <td colspan="6">Aún no hay conceptos Carta Porte registrados.</td>
                     </tr>
                 {% endfor %}
             </tbody>

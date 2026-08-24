@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Importar catalogo SAT - Sistema Django{% endblock %}
+{% block title %}Importar catálogo Carta Porte - Sistema Django{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1 class="page-title">Importar claves SAT</h1>
-        <p class="muted">Carga el catalogo SAT de claves producto/servicio desde CSV.</p>
+        <h1 class="page-title">Importar catálogo Carta Porte</h1>
+        <p class="muted">Carga conceptos Carta Porte desde CSV o XLSX.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'catalogos:sat_list' %}">Volver al listado</a>
         <a class="btn btn-secondary" href="{% url 'catalogos:plantilla_sat' %}">Descargar plantilla CSV</a>
+        <a class="btn btn-secondary" href="{% url 'catalogos:plantilla_sat_xlsx' %}">Descargar plantilla XLSX</a>
         {% if perms.catalogos.puede_ver_historial_cargas_catalogo %}
             <a class="btn btn-secondary" href="{% url 'catalogos:cargas_list' %}">Historial de cargas</a>
         {% endif %}
@@ -18,43 +19,12 @@
 </div>
 
 <div class="card">
-    <h2>Formato esperado</h2>
-    <p class="alert alert-success">
-        El archivo puede incluir filas superiores de metadatos; el sistema detecta la primera fila valida por clave numerica.
-    </p>
-
-    <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Columna</th>
-                    <th>Dato</th>
-                    <th>Requerido</th>
-                    <th>Ejemplo</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td>A/1</td><td>clave</td><td>Obligatorio</td><td>10101500</td></tr>
-                <tr><td>B/2</td><td>descripcion</td><td>Obligatorio</td><td>Animales vivos de granja</td></tr>
-                <tr><td>C/3</td><td>incluir_iva_trasladado</td><td>Opcional</td><td>Opcional</td></tr>
-                <tr><td>D/4</td><td>incluir_ieps_trasladado</td><td>Opcional</td><td>Opcional</td></tr>
-                <tr><td>E/5</td><td>complemento_que_debe_incluir</td><td>Opcional</td><td></td></tr>
-                <tr><td>F/6</td><td>fecha_inicio_vigencia</td><td>Opcional</td><td>1/1/2022</td></tr>
-                <tr><td>G/7</td><td>fecha_fin_vigencia</td><td>Opcional</td><td></td></tr>
-                <tr><td>H/8</td><td>estimulo_franja_fronteriza</td><td>Opcional</td><td>1</td></tr>
-                <tr><td>I/9</td><td>palabras_similares</td><td>Opcional</td><td>Publico en general</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Archivo CSV</h2>
+    <p class="muted">Usa la hoja <code>c_ClaveProdServCP</code> y los encabezados oficiales: <code>c_ClaveProdServ</code>, Descripción, Palabras similares, Material Peligroso, FechaInicioVigencia y FechaFinVigencia.</p>
     <form class="form-grid" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ form.as_p }}
         <div class="page-actions">
-            <button class="btn btn-primary" type="submit">Importar CSV</button>
+            <button class="btn btn-primary" type="submit">Importar catálogo</button>
         </div>
     </form>
 </div>
