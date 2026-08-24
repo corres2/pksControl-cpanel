@@ -18,7 +18,11 @@ from apps.conceptos.models import (
     PatronSerie,
 )
 from apps.conceptos.services import analizar_historial_para_propuestas
-from apps.conceptos.views import _buscar_sugerencias_historial
+from apps.conceptos.views import (
+    _buscar_sugerencias_historial,
+    conceptos_plantilla_csv,
+    conceptos_plantilla_xlsx,
+)
 
 
 class ConceptosModelTests(TestCase):
@@ -1710,6 +1714,40 @@ class ConceptosViewsTests(TestCase):
         self.assertContains(response, 'MOD-NOMBRE')
         self.assertContains(response, 'Descripcion por nombre')
         self.assertContains(response, '12.50')
+
+    def test_descarga_plantilla_conceptos_csv_usa_encabezados_canonicos(self):
+        documento = self._crear_documento()
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:conceptos_plantilla_csv', kwargs={'pk': documento.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            'numero_parte,serie,modelo,descripcion,cantidad,precio_unitario',
+            response.content.decode('utf-8-sig'),
+        )
+
+    def test_descarga_plantilla_conceptos_xlsx_usa_encabezados_canonicos(self):
+        documento = self._crear_documento()
+        self._grant('change_documentoconceptos')
+        self._login()
+
+        response = self.client.get(
+            reverse('conceptos:conceptos_plantilla_xlsx', kwargs={'pk': documento.pk})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(BytesIO(response.content), read_only=True)
+        self.assertEqual(
+            list(next(workbook.active.iter_rows(values_only=True))),
+            ['numero_parte', 'serie', 'modelo', 'descripcion', 'cantidad', 'precio_unitario'],
+        )
+        workbook.close()
 
     def test_cancelar_importacion_limpia_preview_sin_crear_conceptos(self):
         documento = self._crear_documento()

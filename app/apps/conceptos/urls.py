@@ -8,6 +8,8 @@ from apps.conceptos.views import (
     concepto_update,
     conceptos_reordenar,
     conceptos_importar,
+    conceptos_plantilla_csv,
+    conceptos_plantilla_xlsx,
     conceptos_importar_cancelar,
     conceptos_importar_confirmar,
     conceptos_autocomplete,
@@ -30,6 +32,8 @@ urlpatterns = [
     path('<int:pk>/exportar-word/', documento_exportar_word, name='documento_exportar_word'),
     path('<int:pk>/editar/', documento_update, name='documento_update'),
     path('<int:pk>/importar/', conceptos_importar, name='conceptos_importar'),
+    path('<int:pk>/importar/plantilla.csv', conceptos_plantilla_csv, name='conceptos_plantilla_csv'),
+    path('<int:pk>/importar/plantilla.xlsx', conceptos_plantilla_xlsx, name='conceptos_plantilla_xlsx'),
     path(
         '<int:pk>/importar/confirmar/',
         conceptos_importar_confirmar,

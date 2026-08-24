@@ -69,7 +69,7 @@ Para un concepto, “Número de parte”, “Serie”, “Modelo”, “Descripc
 
 La pantalla debe decir siempre “CSV o XLSX” cuando ambos formatos estén soportados. Evitar textos heredados como “Importar CSV”. Usar “Seleccionar archivo” y “Generar preview” para la primera acción.
 
-Para números de parte, documentar las columnas por posición: A `numero_parte` (obligatorio), B `modelo`, C `descripcion` (obligatorio), D `fraccion`. Aceptar encabezados, ignorar filas completamente vacías y explicar que una fila parcial sí se valida y puede producir error.
+Para números de parte, documentar los encabezados por nombre: `numero_parte` (obligatorio), `modelo`, `descripcion` (obligatorio) y `fraccion`. Aceptar variaciones razonables de mayúsculas, espacios y acentos; ignorar filas completamente vacías y explicar que una fila parcial sí se valida y puede producir error.
 
 El flujo recomendado es: seleccionar archivo → generar preview → revisar resumen y errores → confirmar o cancelar → mostrar resultado y acciones posteriores. La confirmación debe ser una acción explícita y no ejecutarse al cargar el archivo.
 

@@ -1,5 +1,4 @@
 import csv
-import csv
 import re
 import unicodedata
 from datetime import datetime
@@ -9,6 +8,13 @@ from apps.catalogos.models import ClaveProductoServicioSAT, NumeroParte
 
 MAX_FILAS_NUMEROS_PARTE = 5000
 MAX_MUESTRA_PREVIEW = 10
+
+_ENCABEZADOS_NUMEROS_PARTE = {
+    'numero_parte': {'numero_parte', 'numero_de_parte', 'numero_parte_catalogo'},
+    'modelo': {'modelo'},
+    'descripcion': {'descripcion'},
+    'fraccion': {'fraccion'},
+}
 
 
 def importar_numeros_parte_csv(archivo):
@@ -30,14 +36,32 @@ def analizar_numeros_parte_csv(archivo, limite=MAX_FILAS_NUMEROS_PARTE):
     }
     numeros_en_archivo = set()
     limite_excedido = False
+    encabezados = None
 
     for fila_numero, fila in _leer_archivo_numeros_parte(archivo):
-        valores = _normalizar_fila(fila, 4)
-        numero_parte, modelo, descripcion, fraccion = valores
-
-        if fila_numero == 1 and _parece_encabezado_numero_parte(numero_parte):
+        if encabezados is None:
+            if not any(_normalizar_texto(valor) for valor in fila):
+                continue
+            encabezados = _mapear_encabezados_numero_parte(fila)
+            faltantes = [
+                nombre for nombre in ('numero_parte', 'descripcion')
+                if nombre not in encabezados
+            ]
+            if faltantes:
+                _agregar_error(
+                    preview,
+                    fila_numero,
+                    'Faltan encabezados obligatorios: ' + ', '.join(faltantes) + '.',
+                )
+                break
             continue
-        if not any(valores):
+
+        valores = _normalizar_fila_por_encabezados(fila, encabezados)
+        numero_parte = valores['numero_parte']
+        modelo = valores['modelo']
+        descripcion = valores['descripcion']
+        fraccion = valores['fraccion']
+        if not any(valores.values()):
             continue
 
         if len(preview['filas']) + len(preview['errores']) >= limite:
@@ -77,6 +101,7 @@ def analizar_numeros_parte_csv(archivo, limite=MAX_FILAS_NUMEROS_PARTE):
             ).values_list('numero_parte', flat=True)
         )
     preview['filas_validas'] = len(preview['filas'])
+    preview['total_filas'] = preview['filas_validas'] + len(preview['errores'])
     preview['actualizarian'] = sum(
         1 for fila in preview['filas'] if fila['numero_parte'] in existentes
     )
@@ -192,7 +217,7 @@ def _leer_xlsx(archivo):
         for indice, fila in enumerate(
             workbook.active.iter_rows(values_only=True), start=1
         ):
-            yield indice, [valor if valor is not None else '' for valor in fila[:4]]
+            yield indice, [valor if valor is not None else '' for valor in fila]
     finally:
         workbook.close()
 
@@ -209,6 +234,39 @@ def _decodificar(contenido):
 def _normalizar_fila(fila, longitud):
     valores = [str(valor).strip() for valor in fila[:longitud]]
     return valores + [''] * (longitud - len(valores))
+
+
+def _normalizar_texto(valor):
+    texto = _sin_acentos(str(valor or '')).strip().lower()
+    return re.sub(r'[^a-z0-9]+', '_', texto).strip('_')
+
+
+def _mapear_encabezados_numero_parte(fila):
+    encabezados = {}
+    for indice, valor in enumerate(fila):
+        normalizado = _normalizar_texto(valor)
+        for nombre, alias in _ENCABEZADOS_NUMEROS_PARTE.items():
+            if normalizado in alias and nombre not in encabezados:
+                encabezados[nombre] = indice
+                break
+    return encabezados
+
+
+def _normalizar_fila_por_encabezados(fila, encabezados):
+    return {
+        nombre: str(fila[indice]).strip() if indice < len(fila) and fila[indice] is not None else ''
+        for nombre, indice in (
+            ('numero_parte', encabezados.get('numero_parte')),
+            ('modelo', encabezados.get('modelo')),
+            ('descripcion', encabezados.get('descripcion')),
+            ('fraccion', encabezados.get('fraccion')),
+        )
+        if indice is not None
+    } | {
+        nombre: ''
+        for nombre in ('numero_parte', 'modelo', 'descripcion', 'fraccion')
+        if nombre not in encabezados
+    }
 
 
 def _parece_encabezado_numero_parte(valor):

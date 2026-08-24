@@ -3,6 +3,7 @@ from django.urls import path
 from apps.catalogos.views import (
     cargas_list,
     descargar_plantilla_numeros_parte,
+    descargar_plantilla_numeros_parte_xlsx,
     descargar_plantilla_sat,
     exportar_cargas_csv,
     exportar_numeros_parte_csv,
@@ -35,6 +36,11 @@ urlpatterns = [
         'numeros-parte/plantilla/',
         descargar_plantilla_numeros_parte,
         name='plantilla_numeros_parte',
+    ),
+    path(
+        'numeros-parte/plantilla.xlsx',
+        descargar_plantilla_numeros_parte_xlsx,
+        name='plantilla_numeros_parte_xlsx',
     ),
     path(
         'numeros-parte/<int:pk>/activar/',

@@ -25,6 +25,8 @@
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'conceptos:documento_detail' documento.pk %}">Volver a la factura</a>
+        <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_plantilla_csv' documento.pk %}">Descargar plantilla CSV</a>
+        <a class="btn btn-secondary" href="{% url 'conceptos:conceptos_plantilla_xlsx' documento.pk %}">Descargar plantilla XLSX</a>
     </div>
 </div>
 

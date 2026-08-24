@@ -23,6 +23,7 @@ from apps.catalogos.views import (
     _registrar_carga_catalogo,
     cargas_list,
     descargar_plantilla_numeros_parte,
+    descargar_plantilla_numeros_parte_xlsx,
     descargar_plantilla_sat,
     exportar_cargas_csv,
     exportar_numeros_parte_csv,
@@ -127,8 +128,8 @@ class FakeQuerySet(list):
 
 
 class ImportarNumerosParteCSVTests(SimpleTestCase):
-    def test_importa_csv_por_posicion(self):
-        archivo = _csv('ABC123,MOD-2026,Sensor de temperatura,9026.10.01\n')
+    def test_importa_csv_por_nombre_de_columna(self):
+        archivo = _csv('numero_parte,modelo,descripcion,fraccion\nABC123,MOD-2026,Sensor de temperatura,9026.10.01\n')
 
         with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
             manager.filter.return_value.values_list.return_value = []
@@ -146,8 +147,35 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
             },
         )
 
+    def test_importa_csv_con_columnas_en_orden_distinto(self):
+        archivo = _csv(
+            'Descripción,fraccion,modelo,numero_parte\n'
+            'Sensor,9026.10.01,MOD-X,CSV-002\n'
+        )
+
+        with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
+            manager.filter.return_value.values_list.return_value = []
+            manager.update_or_create.return_value = (SimpleNamespace(), True)
+            resultado = importar_numeros_parte_csv(archivo)
+
+        self.assertEqual(resultado['procesadas'], 1)
+        manager.update_or_create.assert_called_once_with(
+            numero_parte='CSV-002',
+            defaults={
+                'modelo': 'MOD-X',
+                'descripcion': 'Sensor',
+                'fraccion': '9026.10.01',
+            },
+        )
+
+    def test_reporta_encabezados_obligatorios_faltantes(self):
+        resultado = analizar_numeros_parte_csv(_csv('numero_parte,modelo\nCSV-003,MOD-X\n'))
+
+        self.assertEqual(resultado['filas_validas'], 0)
+        self.assertIn('descripcion', resultado['errores'][0]['error'])
+
     def test_actualiza_si_numero_parte_ya_existe(self):
-        archivo = _csv('ABC123,,Sensor de temperatura,\n')
+        archivo = _csv('numero_parte,modelo,descripcion,fraccion\nABC123,,Sensor de temperatura,\n')
 
         with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
             manager.filter.return_value.values_list.return_value = ['ABC123']
@@ -157,25 +185,25 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
         self.assertEqual(resultado['actualizadas'], 1)
 
     def test_reporta_error_si_falta_numero_parte(self):
-        archivo = _csv(',MOD-2026,Sensor de temperatura,\n')
+        archivo = _csv('numero_parte,modelo,descripcion,fraccion\n,MOD-2026,Sensor de temperatura,\n')
 
         resultado = importar_numeros_parte_csv(archivo)
 
         self.assertEqual(resultado['creadas'], 0)
-        self.assertEqual(resultado['errores'][0]['fila'], 1)
+        self.assertEqual(resultado['errores'][0]['fila'], 2)
         self.assertIn('numero_parte', resultado['errores'][0]['error'])
 
     def test_reporta_error_si_falta_descripcion(self):
-        archivo = _csv('ABC123,MOD-2026,,9026.10.01\n')
+        archivo = _csv('numero_parte,modelo,descripcion,fraccion\nABC123,MOD-2026,,9026.10.01\n')
 
         resultado = importar_numeros_parte_csv(archivo)
 
         self.assertEqual(resultado['creadas'], 0)
-        self.assertEqual(resultado['errores'][0]['fila'], 1)
+        self.assertEqual(resultado['errores'][0]['fila'], 2)
         self.assertIn('descripcion', resultado['errores'][0]['error'])
 
     def test_analiza_csv_sin_guardar_cambios(self):
-        archivo = _csv('ABC123,MOD-2026,Sensor de temperatura,9026.10.01\n')
+        archivo = _csv('numero_parte,modelo,descripcion,fraccion\nABC123,MOD-2026,Sensor de temperatura,9026.10.01\n')
 
         with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
             manager.filter.return_value.values_list.return_value = []
@@ -187,6 +215,7 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
 
     def test_analiza_csv_detecta_duplicados_en_archivo(self):
         archivo = _csv(
+            'numero_parte,modelo,descripcion,fraccion\n'
             'ABC123,MOD-2026,Sensor de temperatura,9026.10.01\n'
             'ABC123,MOD-2026,Sensor duplicado,9026.10.01\n'
         )
@@ -200,7 +229,7 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
         self.assertIn('duplicado', resultado['errores'][0]['error'])
 
     def test_analiza_csv_limita_filas(self):
-        contenido = ''.join(
+        contenido = 'numero_parte,modelo,descripcion,fraccion\n' + ''.join(
             f'NP-{indice},MOD,Descripcion {indice},\n'
             for indice in range(MAX_FILAS_NUMEROS_PARTE + 1)
         )
@@ -212,7 +241,7 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
         self.assertEqual(resultado['filas_validas'], MAX_FILAS_NUMEROS_PARTE)
         self.assertIn('limite', resultado['errores'][0]['error'])
 
-    def test_importa_xlsx_por_posicion_y_omite_encabezado(self):
+    def test_importa_xlsx_por_nombre_y_omite_encabezado(self):
         archivo = _xlsx([
             ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
             ['XLSX-001', 'MOD-X', 'Descripcion XLSX', '1234.56.78'],
@@ -247,6 +276,27 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
         self.assertIn('numero_parte', resultado['errores'][0]['error'])
         manager.update_or_create.assert_not_called()
 
+    def test_importa_xlsx_con_columnas_en_orden_distinto(self):
+        archivo = _xlsx([
+            ['descripcion', 'fracción', 'numero de parte', 'modelo'],
+            ['Descripción', '9026.10.01', 'XLSX-002', 'MOD-X'],
+        ])
+
+        with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
+            manager.filter.return_value.values_list.return_value = []
+            manager.update_or_create.return_value = (SimpleNamespace(), True)
+            resultado = importar_numeros_parte_csv(archivo)
+
+        self.assertEqual(resultado['procesadas'], 1)
+        manager.update_or_create.assert_called_once_with(
+            numero_parte='XLSX-002',
+            defaults={
+                'modelo': 'MOD-X',
+                'descripcion': 'Descripción',
+                'fraccion': '9026.10.01',
+            },
+        )
+
     def test_analiza_xlsx_ignora_filas_completamente_vacias(self):
         archivo = _xlsx([
             ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
@@ -264,7 +314,7 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
         manager.filter.assert_called_once()
 
     def test_analiza_csv_ignora_filas_completamente_vacias(self):
-        archivo = _csv('ABC123,MOD-A,Descripcion,\n,,,\n\n')
+        archivo = _csv('numero_parte,modelo,descripcion,fraccion\nABC123,MOD-A,Descripcion,\n,,,\n\n')
 
         with patch('apps.catalogos.services.importacion.NumeroParte.objects') as manager:
             manager.filter.return_value.values_list.return_value = []
@@ -274,10 +324,10 @@ class ImportarNumerosParteCSVTests(SimpleTestCase):
         self.assertEqual(resultado['errores'], [])
 
     def test_fila_parcial_sin_numero_parte_sigue_generando_error(self):
-        resultado = analizar_numeros_parte_csv(_csv(',MOD-A,Descripcion,\n'))
+        resultado = analizar_numeros_parte_csv(_csv('numero_parte,modelo,descripcion,fraccion\n,MOD-A,Descripcion,\n'))
 
         self.assertEqual(resultado['filas_validas'], 0)
-        self.assertEqual(resultado['errores'][0]['fila'], 1)
+        self.assertEqual(resultado['errores'][0]['fila'], 2)
         self.assertIn('numero_parte', resultado['errores'][0]['error'])
 
 
@@ -634,7 +684,9 @@ class NumeroParteManualViewsTests(TestCase):
         self.assertTrue(numero_parte.activo)
 
     def test_importacion_crea_nuevos_activos(self):
-        resultado = importar_numeros_parte_csv(_csv('NP-NUEVO,MOD,Sensor,\n'))
+        resultado = importar_numeros_parte_csv(
+            _csv('numero_parte,modelo,descripcion,fraccion\nNP-NUEVO,MOD,Sensor,\n')
+        )
 
         self.assertEqual(resultado['creadas'], 1)
         self.assertTrue(NumeroParte.objects.get(numero_parte='NP-NUEVO').activo)
@@ -643,7 +695,7 @@ class NumeroParteManualViewsTests(TestCase):
         self._crear_numero_parte('NP-INACTIVO', activo=False)
 
         resultado = importar_numeros_parte_csv(
-            _csv('NP-INACTIVO,MOD-Z,Sensor actualizado,\n')
+            _csv('numero_parte,modelo,descripcion,fraccion\nNP-INACTIVO,MOD-Z,Sensor actualizado,\n')
         )
 
         numero_parte = NumeroParte.objects.get(numero_parte='NP-INACTIVO')
@@ -708,8 +760,14 @@ class CatalogosViewsTests(SimpleTestCase):
         contenido = response.content.decode('utf-8')
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Columna', contenido)
+        self.assertNotIn('>Formato<', contenido)
+        self.assertNotIn('por posición', contenido)
+        self.assertIn('Usa encabezados', contenido)
         self.assertIn('numero_parte', contenido)
+        self.assertIn('descripcion', contenido)
+        self.assertIn('Generar preview', contenido)
+        self.assertIn('Descargar plantilla CSV', contenido)
+        self.assertIn('Descargar plantilla XLSX', contenido)
 
     def test_listado_numeros_parte_requiere_login(self):
         response = self.client.get(reverse('catalogos:numeros_parte_list'))
@@ -1698,7 +1756,24 @@ class CatalogosViewsTests(SimpleTestCase):
             'filename="plantilla_numeros_parte.csv"',
             response['Content-Disposition'],
         )
-        self.assertIn('numero de parte,MODELO,descripcion,fracción', contenido)
+        self.assertIn('numero_parte,modelo,descripcion,fraccion', contenido)
+
+    def test_usuario_autenticado_descarga_plantilla_numeros_parte_xlsx(self):
+        request = self.factory.get(reverse('catalogos:plantilla_numeros_parte_xlsx'))
+        request.user = _user(True)
+
+        response = descargar_plantilla_numeros_parte_xlsx(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('filename="plantilla_numeros_parte.xlsx"', response['Content-Disposition'])
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(BytesIO(response.content), read_only=True)
+        self.assertEqual(
+            list(next(workbook.active.iter_rows(values_only=True))),
+            ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
+        )
+        workbook.close()
 
     def test_usuario_autenticado_descarga_plantilla_sat(self):
         request = self.factory.get(reverse('catalogos:plantilla_sat'))

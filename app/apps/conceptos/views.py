@@ -1,12 +1,14 @@
+import csv
 import json
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -171,6 +173,38 @@ def conceptos_importar(request, pk):
         'conceptos/importar_conceptos.html',
         {'documento': documento, 'preview': preview},
     )
+
+
+@permission_required('conceptos.change_documentoconceptos')
+def conceptos_plantilla_csv(request, pk):
+    get_object_or_404(DocumentoConceptos, pk=pk)
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="plantilla_conceptos_{pk}.csv"'
+    response.write('\ufeff')
+    csv.writer(response).writerow(
+        ['numero_parte', 'serie', 'modelo', 'descripcion', 'cantidad', 'precio_unitario']
+    )
+    return response
+
+
+@permission_required('conceptos.change_documentoconceptos')
+def conceptos_plantilla_xlsx(request, pk):
+    get_object_or_404(DocumentoConceptos, pk=pk)
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    workbook.active.append(
+        ['numero_parte', 'serie', 'modelo', 'descripcion', 'cantidad', 'precio_unitario']
+    )
+    contenido = BytesIO()
+    workbook.save(contenido)
+    workbook.close()
+    response = HttpResponse(
+        contenido.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="plantilla_conceptos_{pk}.xlsx"'
+    return response
 
 
 @require_POST

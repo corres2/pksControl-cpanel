@@ -3,14 +3,22 @@
 {% block title %}Importar números de parte - Sistema Django{% endblock %}
 
 {% block content %}
+<style>
+    button.importacion-confirmar { background: #047857; color: #fff; }
+    button.importacion-confirmar:hover { background: #065f46; color: #fff; }
+    button.importacion-cancelar { background: var(--danger-soft); border-color: #fecaca; color: var(--danger); }
+    button.importacion-cancelar:hover { background: #fee2e2; color: var(--danger); }
+    .importacion-acciones { gap: 12px; }
+</style>
 <div class="page-header">
     <div>
         <h1 class="page-title">Importar números de parte</h1>
-        <p class="muted">Carga el catálogo interno desde un archivo CSV o XLSX.</p>
+        <p class="muted">Carga o actualiza el catálogo interno desde CSV o XLSX.</p>
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Volver al listado</a>
         <a class="btn btn-secondary" href="{% url 'catalogos:plantilla_numeros_parte' %}">Descargar plantilla CSV</a>
+        <a class="btn btn-secondary" href="{% url 'catalogos:plantilla_numeros_parte_xlsx' %}">Descargar plantilla XLSX</a>
         {% if perms.catalogos.puede_ver_historial_cargas_catalogo %}
             <a class="btn btn-secondary" href="{% url 'catalogos:cargas_list' %}">Historial de cargas</a>
         {% endif %}
@@ -18,34 +26,14 @@
 </div>
 
 <div class="card">
-    <h2>Formato esperado</h2>
-    <p class="alert alert-success">La importación acepta CSV o XLSX y lee las columnas por posición, no por nombre. La columna A corresponde a <code>numero_parte</code>.</p>
-
-    <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Columna</th>
-                    <th>Dato</th>
-                    <th>Requerido</th>
-                    <th>Ejemplo</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td>A/1</td><td>Número de parte</td><td>Obligatorio</td><td>ABC123</td></tr>
-                <tr><td>B/2</td><td>modelo</td><td>Opcional</td><td>MOD-2026</td></tr>
-                <tr><td>C/3</td><td>Descripción</td><td>Obligatorio</td><td>Sensor de temperatura</td></tr>
-                <tr><td>D/4</td><td>Fracción</td><td>Opcional</td><td>9026.10.01</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Archivo CSV o XLSX</h2>
+    <p class="muted">Acepta archivos CSV o XLSX. Usa encabezados: <code>numero_parte</code>, <code>modelo</code>, <code>descripcion</code> y <code>fraccion</code>. Número de parte y descripción son obligatorios.</p>
     <form class="form-grid" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        {{ form.as_p }}
+        <div class="form-field">
+            <label for="id_archivo">Archivo CSV/XLSX</label>
+            <input id="id_archivo" type="file" name="archivo" accept=".csv,.xlsx" required>
+            {{ form.archivo.errors }}
+        </div>
         <div class="page-actions">
             <button class="btn btn-primary" type="submit">Generar preview</button>
         </div>
@@ -56,45 +44,34 @@
     <div class="card" id="preview" tabindex="-1">
         <div class="page-header">
             <div>
-                <h2 class="page-title" id="preview-title" tabindex="-1">Vista previa</h2>
+                <h2 class="page-title" id="preview-title" tabindex="-1">Preview</h2>
                 <p class="muted">{{ preview.archivo_nombre }}</p>
             </div>
             <div class="page-actions">
                 {% if preview.errores %}
-                    <span class="badge badge-warning">Con errores</span>
+                    <span class="badge badge-warning">Revisa las filas observadas antes de confirmar.</span>
                 {% else %}
-                    <span class="badge badge-ok">Listo para confirmar</span>
+                    <span class="badge badge-ok">Todas las filas están listas para confirmar.</span>
                 {% endif %}
             </div>
         </div>
 
-        <div class="card-grid">
-            <div class="quick-card">
-                <strong>Filas válidas</strong>
-                <span class="muted">{{ preview.filas_validas }}</span>
-            </div>
-            <div class="quick-card">
-                <strong>Crearían</strong>
-                <span class="muted">{{ preview.crearian }}</span>
-            </div>
-            <div class="quick-card">
-                <strong>Actualizarían</strong>
-                <span class="muted">{{ preview.actualizarian }}</span>
-            </div>
-            <div class="quick-card">
-                <strong>Errores</strong>
-                <span class="muted">{{ preview.errores|length }}</span>
-            </div>
+        <div class="page-actions importacion-acciones">
+            <span class="badge">Totales: {{ preview.total_filas }}</span>
+            <span class="badge">Válidas: {{ preview.filas_validas }}</span>
+            <span class="badge">Crearían: {{ preview.crearian }}</span>
+            <span class="badge">Actualizarían: {{ preview.actualizarian }}</span>
+            <span class="badge {% if preview.errores %}badge-warning{% endif %}">Errores: {{ preview.errores|length }}</span>
         </div>
 
-        <div class="page-actions">
+        <div class="page-actions importacion-acciones">
             <form method="post">
                 {% csrf_token %}
-                <button class="btn btn-primary" type="submit" name="accion" value="confirmar">Confirmar importación</button>
+                <button class="btn btn-primary importacion-confirmar" type="submit" name="accion" value="confirmar">Confirmar importación</button>
             </form>
             <form method="post">
                 {% csrf_token %}
-                <button class="btn btn-secondary" type="submit" name="accion" value="cancelar">Cancelar</button>
+                <button class="btn btn-danger-light importacion-cancelar" type="submit" name="accion" value="cancelar">Cancelar importación</button>
             </form>
         </div>
     </div>
@@ -167,11 +144,11 @@
     <div class="page-actions">
         <form method="post">
             {% csrf_token %}
-            <button class="btn btn-primary" type="submit" name="accion" value="confirmar">Confirmar importación</button>
+                <button class="btn btn-primary importacion-confirmar" type="submit" name="accion" value="confirmar">Confirmar importación</button>
         </form>
         <form method="post">
             {% csrf_token %}
-            <button class="btn btn-secondary" type="submit" name="accion" value="cancelar">Cancelar</button>
+            <button class="btn btn-danger-light importacion-cancelar" type="submit" name="accion" value="cancelar">Cancelar importación</button>
         </form>
     </div>
 {% endif %}

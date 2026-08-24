@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime, time
+from io import BytesIO
 from types import SimpleNamespace
 
 from django.contrib import messages
@@ -141,7 +142,19 @@ def descargar_plantilla_numeros_parte(request):
     return _crear_csv_descarga(
         'plantilla_numeros_parte.csv',
         [
-            ['numero de parte', 'MODELO', 'descripcion', 'fracción'],
+            ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
+            ['NP-001', 'MOD-A', 'Sensor de temperatura', '9026.10.01'],
+            ['NP-002', 'MOD-B', 'Cable de conexión', '8544.42.99'],
+        ],
+    )
+
+
+@permission_required('catalogos.puede_importar_numeroparte')
+def descargar_plantilla_numeros_parte_xlsx(request):
+    return _crear_xlsx_descarga(
+        'plantilla_numeros_parte.xlsx',
+        [
+            ['numero_parte', 'modelo', 'descripcion', 'fraccion'],
             ['NP-001', 'MOD-A', 'Sensor de temperatura', '9026.10.01'],
             ['NP-002', 'MOD-B', 'Cable de conexión', '8544.42.99'],
         ],
@@ -595,4 +608,22 @@ def _crear_csv_descarga(nombre_archivo, filas):
     response.write('\ufeff')
     writer = csv.writer(response)
     writer.writerows(filas)
+    return response
+
+
+def _crear_xlsx_descarga(nombre_archivo, filas):
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    sheet = workbook.active
+    for fila in filas:
+        sheet.append(fila)
+    contenido = BytesIO()
+    workbook.save(contenido)
+    workbook.close()
+    response = HttpResponse(
+        contenido.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
     return response
