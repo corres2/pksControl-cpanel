@@ -22,6 +22,14 @@ from apps.catalogos.services.importacion import (
 )
 
 PREVIEW_NUMEROS_PARTE_SESSION_KEY = 'catalogos_preview_numeros_parte'
+ENCABEZADOS_SAT = [
+    'c_ClaveProdServ',
+    'Descripción',
+    'Palabras similares',
+    'Material Peligroso',
+    'FechaInicioVigencia',
+    'FechaFinVigencia',
+]
 
 
 def _datetime_en_dia(fecha, hora):
@@ -166,7 +174,7 @@ def descargar_plantilla_sat(request):
     return _crear_csv_descarga(
         'plantilla_catalogo_carta_porte.csv',
         [
-            ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'],
+            ENCABEZADOS_SAT,
             ['01010101', 'Ejemplo', '', '0', '', ''],
         ],
     )
@@ -177,7 +185,7 @@ def descargar_plantilla_sat_xlsx(request):
     return _crear_xlsx_descarga(
         'plantilla_catalogo_carta_porte.xlsx',
         [
-            ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'],
+            ENCABEZADOS_SAT,
             ['01010101', 'Ejemplo', '', '0', '', ''],
         ],
     )
@@ -402,9 +410,7 @@ def exportar_sat_csv(request):
     response.write('\ufeff')
 
     writer = csv.writer(response)
-    writer.writerow(
-        ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia']
-    )
+    writer.writerow(ENCABEZADOS_SAT)
     for item in queryset:
         writer.writerow(
             [
@@ -423,9 +429,7 @@ def exportar_sat_csv(request):
 @permission_required('catalogos.view_claveproductoserviciosat')
 def exportar_sat_xlsx(request):
     queryset, _q, _iva, _ieps, _vigente = _claves_sat_filtradas(request)
-    filas = [
-        ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia']
-    ]
+    filas = [ENCABEZADOS_SAT]
     filas.extend(
         [
             item.clave,

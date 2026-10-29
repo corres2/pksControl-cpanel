@@ -2,7 +2,6 @@ from io import BytesIO
 
 from django.http import HttpResponse
 
-
 DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 

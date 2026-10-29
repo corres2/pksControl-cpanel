@@ -51,8 +51,8 @@ class HomeDashboardTests(SimpleTestCase):
         self.assertIn('Estado del sistema', contenido)
         self.assertNotIn('Numeros de parte', contenido)
         self.assertNotIn('Importar numeros de parte', contenido)
-        self.assertNotIn('Claves SAT', contenido)
-        self.assertNotIn('Importar claves SAT', contenido)
+        self.assertNotIn('Catálogo Carta Porte', contenido)
+        self.assertNotIn('Importar Carta Porte', contenido)
         self.assertNotIn('Historial de cargas', contenido)
 
     def test_usuario_con_permiso_view_numeroparte_ve_acceso(self):
@@ -81,14 +81,14 @@ class HomeDashboardTests(SimpleTestCase):
             _user(False, permisos={'catalogos.view_claveproductoserviciosat'})
         )
 
-        self.assertContains(response, 'Claves SAT')
+        self.assertContains(response, 'Catálogo Carta Porte')
 
     def test_usuario_con_permiso_importar_sat_ve_acceso(self):
         response = self._render_home(
             _user(False, permisos={'catalogos.puede_importar_claves_sat'})
         )
 
-        self.assertContains(response, 'Importar claves SAT')
+        self.assertContains(response, 'Importar Carta Porte')
 
     def test_usuario_con_permiso_historial_ve_acceso(self):
         response = self._render_home(
@@ -104,8 +104,8 @@ class HomeDashboardTests(SimpleTestCase):
         self.assertIn('Estado del sistema', contenido)
         self.assertIn('Numeros de parte', contenido)
         self.assertIn('Importar numeros de parte', contenido)
-        self.assertIn('Claves SAT', contenido)
-        self.assertIn('Importar claves SAT', contenido)
+        self.assertIn('Catálogo Carta Porte', contenido)
+        self.assertIn('Importar Carta Porte', contenido)
         self.assertIn('Historial de cargas', contenido)
 
 

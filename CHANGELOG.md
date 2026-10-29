@@ -1,5 +1,12 @@
 # Changelog
 
+## Sin publicar
+
+- CI en GitHub Actions (ruff + pytest con MySQL) y configuración de pre-commit.
+- pytest corre desde la raíz; ruff con límite de 120 columnas y sin hallazgos.
+- Tests de inicio actualizados al nombre "Catálogo Carta Porte".
+- `CLAUDE.md` con convenciones y comandos del proyecto.
+
 ## 0.1.1
 
 - Se agregan scripts PowerShell para Windows 11.

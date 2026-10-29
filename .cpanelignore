@@ -39,3 +39,7 @@ htmlcov/
 .vscode/
 .idea/
 docs/PENDIENTES.md
+.github/
+.pre-commit-config.yaml
+CLAUDE.md
+.claude/

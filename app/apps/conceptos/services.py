@@ -10,7 +10,6 @@ from apps.conceptos.models import (
     normalizar_texto,
 )
 
-
 MIN_SERIES_UNICAS = 3
 MIN_PREFIX_LEN = 3
 
@@ -101,7 +100,9 @@ def _crear_o_actualizar_patron(
     conflicto_numero_parte=False,
 ):
     series_unicas = sorted({normalizar_texto(evidencia.serie) for evidencia in evidencias if evidencia.serie})
-    numero_partes = sorted({normalizar_texto(evidencia.numero_parte) for evidencia in evidencias if evidencia.numero_parte})
+    numero_partes = sorted(
+        {normalizar_texto(evidencia.numero_parte) for evidencia in evidencias if evidencia.numero_parte}
+    )
     modelo = firma['modelo']
     descripcion = firma['descripcion']
     numero_parte = firma['numero_parte']

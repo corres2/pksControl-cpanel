@@ -170,7 +170,9 @@ def importar_claves_sat_csv(archivo):
                 'descripcion': descripcion,
                 'incluir_iva_trasladado': fila.get('incluir_iva_trasladado', ''),
                 'incluir_ieps_trasladado': fila.get('incluir_ieps_trasladado', ''),
-                'complemento_que_debe_incluir': fila.get('material_peligroso') or fila.get('complemento_que_debe_incluir', ''),
+                'complemento_que_debe_incluir': (
+                    fila.get('material_peligroso') or fila.get('complemento_que_debe_incluir', '')
+                ),
                 'fecha_inicio_vigencia': _parsear_fecha(fila.get('fecha_inicio_vigencia')),
                 'fecha_fin_vigencia': _parsear_fecha(fila.get('fecha_fin_vigencia')),
                 'estimulo_franja_fronteriza': fila.get('estimulo_franja_fronteriza', ''),

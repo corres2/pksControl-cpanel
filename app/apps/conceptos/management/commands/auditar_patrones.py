@@ -6,7 +6,6 @@ from django.db.models import Count
 
 from apps.conceptos.models import PatronSerie, normalizar_texto
 
-
 LIMITE_EJEMPLOS = 5
 
 

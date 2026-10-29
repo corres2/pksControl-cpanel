@@ -19,7 +19,6 @@ from apps.conceptos.importacion import (
     analizar_archivo_conceptos,
     confirmar_importacion_conceptos,
 )
-from apps.conceptos.services import analizar_historial_para_propuestas
 from apps.conceptos.models import (
     Concepto,
     DocumentoConceptos,
@@ -28,7 +27,7 @@ from apps.conceptos.models import (
     normalizar_texto,
     registrar_historial_concepto,
 )
-
+from apps.conceptos.services import analizar_historial_para_propuestas
 
 ACCION_BUSCAR_NUMERO_PARTE = 'buscar_numero_parte'
 ACCION_BUSCAR_SERIE = 'buscar_serie'

@@ -1,5 +1,4 @@
-from io import BytesIO
-from io import StringIO
+from io import BytesIO, StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -25,17 +24,14 @@ from apps.catalogos.views import (
     descargar_plantilla_numeros_parte,
     descargar_plantilla_numeros_parte_xlsx,
     descargar_plantilla_sat,
-    descargar_plantilla_sat_xlsx,
     exportar_cargas_csv,
     exportar_numeros_parte_csv,
     exportar_sat_csv,
-    exportar_sat_xlsx,
     importar_numeros_parte,
     importar_sat,
     numeros_parte_list,
     sat_list,
 )
-
 
 GRUPOS_ESPERADOS = {
     'Catalogos - Consulta': {
@@ -367,6 +363,7 @@ class ImportarClavesSATCSVTests(SimpleTestCase):
 
     def test_importa_xlsx_desde_hoja_oficial_y_por_nombre(self):
         from datetime import datetime
+
         from openpyxl import Workbook
 
         workbook = Workbook()
@@ -374,7 +371,14 @@ class ImportarClavesSATCSVTests(SimpleTestCase):
         hoja.title = 'c_ClaveProdServCP'
         hoja.append(['Metadatos'])
         hoja.append([])
-        hoja.append(['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'])
+        hoja.append([
+            'c_ClaveProdServ',
+            'Descripción',
+            'Palabras similares',
+            'Material Peligroso',
+            'FechaInicioVigencia',
+            'FechaFinVigencia',
+        ])
         hoja.append([1010101, 'Descripción oficial', 'ejemplo', 1, datetime(2026, 1, 2), None])
         contenido = BytesIO()
         workbook.save(contenido)

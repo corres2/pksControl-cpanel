@@ -20,8 +20,6 @@ from apps.conceptos.models import (
 from apps.conceptos.services import analizar_historial_para_propuestas
 from apps.conceptos.views import (
     _buscar_sugerencias_historial,
-    conceptos_plantilla_csv,
-    conceptos_plantilla_xlsx,
 )
 
 
@@ -504,7 +502,7 @@ class ConceptosViewsTests(TestCase):
         self.assertContains(response, 'autocomplete="off"')
 
     def test_autocomplete_por_serie_devuelve_patron_activo(self):
-        documento = self._crear_documento()
+        self._crear_documento()
         PatronSerie.objects.create(
             prefix='QI14947',
             numero_parte='XQ235U',
@@ -545,7 +543,7 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(len(ids), 1)
 
     def test_autocomplete_por_numero_parte_deduplica_patrones_equivalentes(self):
-        documento = self._crear_documento()
+        self._crear_documento()
         for prefix in ('NP-DEDUP-A', 'NP-DEDUP-B'):
             PatronSerie.objects.create(
                 prefix=prefix,

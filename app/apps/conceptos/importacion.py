@@ -9,7 +9,6 @@ from django.db.models import Q
 from apps.catalogos.models import NumeroParte
 from apps.conceptos.models import Concepto, DocumentoConceptos, PatronSerie
 
-
 COLUMNAS_ESPERADAS = (
     'numero_parte',
     'serie',
@@ -50,7 +49,7 @@ def confirmar_importacion_conceptos(
         if not fila.get('valida'):
             continue
         datos = fila['datos']
-        concepto = Concepto.objects.create(
+        Concepto.objects.create(
             documento=documento,
             numero_parte=datos['numero_parte'],
             serie=datos['serie'],
@@ -98,7 +97,7 @@ def _leer_xlsx(archivo):
     for row in rows[1:]:
         filas.append({
             header: '' if valor is None else str(valor)
-            for header, valor in zip(headers, row)
+            for header, valor in zip(headers, row, strict=False)
         })
     return filas
 
@@ -124,7 +123,6 @@ def _analizar_fila(numero_fila, fila, documento=None, series_archivo=None):
     precio, error_precio = _decimal_o_default(datos['precio_unitario'], Decimal('0'))
     datos['cantidad'] = str(cantidad) if cantidad is not None else datos['cantidad']
     datos['precio_unitario'] = str(precio) if precio is not None else datos['precio_unitario']
-    errores = []
 
     if serie_normalizada and _serie_existe_en_documento(documento, serie_normalizada):
         estado = 'duplicada'
