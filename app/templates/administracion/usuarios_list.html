@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Usuarios - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Usuarios</h1>
+        <p class="muted">Alta de usuarios y asignación de permisos.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" href="{% url 'administracion:usuario_create' %}">Nuevo usuario</a>
+    </div>
+</div>
+
+<div class="card">
+    <form class="form-grid" method="get">
+        <div class="form-field">
+            <label for="q">Buscar</label>
+            <input id="q" type="search" name="q" value="{{ q }}" placeholder="Usuario, nombre o correo">
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Buscar</button>
+            <a class="btn btn-secondary" href="{% url 'administracion:usuarios_list' %}">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Último acceso</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in filas %}
+                    <tr>
+                        <td>{{ fila.usuario.username }}</td>
+                        <td>{{ fila.usuario.get_full_name|default:"—" }}</td>
+                        <td>{{ fila.usuario.email|default:"—" }}</td>
+                        <td>
+                            {% if fila.es_administrador %}
+                                <span class="badge badge-ok">Administrador</span>
+                            {% else %}
+                                <span class="muted">Operativo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if fila.usuario.is_active %}
+                                <span class="badge badge-ok">Activo</span>
+                            {% else %}
+                                <span class="badge badge-error">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ fila.usuario.last_login|date:"Y-m-d H:i"|default:"Nunca" }}</td>
+                        <td>
+                            <a class="btn btn-secondary" href="{% url 'administracion:usuario_update' fila.usuario.pk %}">Editar</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="muted">No hay usuarios que coincidan.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

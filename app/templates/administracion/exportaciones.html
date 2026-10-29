@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Descargar tablas - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Descargar tablas</h1>
+        <p class="muted">Exporta la información completa de cada tabla para revisarla o hacer barridos.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Tabla</th>
+                    <th>Registros</th>
+                    <th>Descargar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tabla in tablas %}
+                    <tr>
+                        <td>{{ tabla.titulo }}</td>
+                        <td>{{ tabla.total }}</td>
+                        <td>
+                            <a class="btn btn-secondary" href="{% url 'administracion:exportar_tabla' tabla.clave 'xlsx' %}">Excel</a>
+                            <a class="btn btn-secondary" href="{% url 'administracion:exportar_tabla' tabla.clave 'csv' %}">CSV</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

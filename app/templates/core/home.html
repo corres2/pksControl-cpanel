@@ -14,10 +14,20 @@
 </div>
 
 <div class="card-grid">
-    <a class="quick-card" href="{% url 'system_status' %}">
-        <strong>Estado del sistema</strong>
-        <span class="muted">Servidor, version y conexion MySQL.</span>
-    </a>
+    {% if es_administrador %}
+        <a class="quick-card" href="{% url 'system_status' %}">
+            <strong>Estado del sistema</strong>
+            <span class="muted">Servidor, version y conexion MySQL.</span>
+        </a>
+        <a class="quick-card" href="{% url 'administracion:usuarios_list' %}">
+            <strong>Usuarios y permisos</strong>
+            <span class="muted">Alta de usuarios y asignación de accesos.</span>
+        </a>
+        <a class="quick-card" href="{% url 'administracion:exportaciones' %}">
+            <strong>Descargar tablas</strong>
+            <span class="muted">Exporta a Excel o CSV para revisión.</span>
+        </a>
+    {% endif %}
 
     {% if perms.catalogos.view_numeroparte %}
         <a class="quick-card" href="{% url 'catalogos:numeros_parte_list' %}">

@@ -8,6 +8,9 @@
 - `CLAUDE.md` con convenciones y comandos del proyecto.
 - Biblioteca de series: la colisión de prefijos solo se marca cuando un prefijo contiene al otro, y la
   descripción ya no separa grupos del mismo número de parte y modelo (los patrones aprobados dejaban de activarse).
+- Módulo de administración (grupo "Administradores" o superusuario): alta y edición de usuarios con
+  permisos, descarga de tablas en Excel/CSV y estado del sistema, que deja de verse para los demás.
+- Después del login se entra al panel de inicio en lugar del estado del sistema.
 - Comando `recalcular_patrones` para regenerar la biblioteca después del deploy.
 
 ## 0.1.1

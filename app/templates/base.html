@@ -494,7 +494,6 @@
         <nav aria-label="Navegacion principal">
             <p class="sidebar-title">General</p>
             <a href="{% url 'home' %}">Inicio</a>
-            <a href="{% url 'system_status' %}">Estado del sistema</a>
 
             <p class="sidebar-title">Catalogos</p>
             {% if perms.catalogos.view_numeroparte %}
@@ -510,6 +509,13 @@
             {% if perms.conceptos.view_documentoconceptos %}
                 <p class="sidebar-title">Operación</p>
                 <a href="{% url 'conceptos:documentos_list' %}">Cargar facturas</a>
+            {% endif %}
+
+            {% if es_administrador %}
+                <p class="sidebar-title">Administración</p>
+                <a href="{% url 'administracion:usuarios_list' %}">Usuarios y permisos</a>
+                <a href="{% url 'administracion:exportaciones' %}">Descargar tablas</a>
+                <a href="{% url 'system_status' %}">Estado del sistema</a>
             {% endif %}
 
             <p class="sidebar-title">Sesion</p>
