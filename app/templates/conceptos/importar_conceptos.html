@@ -56,6 +56,9 @@
                     <span class="importacion-pill">Duplicadas: {{ preview.resumen.duplicadas }}</span>
                     <span class="importacion-pill">Incompletas: {{ preview.resumen.incompletas }}</span>
                     <span class="importacion-pill">Errores: {{ preview.resumen.errores }}</span>
+                    {% if preview.resumen.alertas_costo %}
+                        <span class="badge badge-error">Alertas de costo: {{ preview.resumen.alertas_costo }}</span>
+                    {% endif %}
                 </div>
             </div>
             <div>
@@ -63,6 +66,11 @@
                     <p class="importacion-preview-status alert-warning" role="status">Revisa las filas; solo se importarán las válidas.</p>
                 {% else %}
                     <p class="importacion-preview-status alert-success" role="status">Todas las filas están listas para confirmar.</p>
+                {% endif %}
+                {% if preview.resumen.alertas_costo %}
+                    <p class="importacion-preview-status alert-warning" role="alert">
+                        {{ preview.resumen.alertas_costo }} fila(s) con costo más de 20% arriba del mínimo histórico. Revísalas antes de confirmar.
+                    </p>
                 {% endif %}
             </div>
         </div>
@@ -102,7 +110,12 @@
                             <td>{{ fila.datos.modelo }}</td>
                             <td>{{ fila.datos.descripcion }}</td>
                             <td>{{ fila.datos.cantidad }}</td>
-                            <td>{{ fila.datos.precio_unitario }}</td>
+                            <td>
+                                {{ fila.datos.precio_unitario }}
+                                {% if fila.alerta_costo %}
+                                    <span class="badge badge-error" title="Mínimo histórico {{ fila.alerta_costo.minimo }} ({{ fila.alerta_costo.folio_minimo }}, {{ fila.alerta_costo.fecha_minimo }})">+{{ fila.alerta_costo.variacion }}%</span>
+                                {% endif %}
+                            </td>
                             <td>{{ fila.total_concepto }}</td>
                             <td class="importacion-estado">
                                 {% if fila.estado == "error" %}

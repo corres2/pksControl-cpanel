@@ -62,6 +62,7 @@ class NumeroParte(models.Model):
     class Meta:
         permissions = [
             ('puede_importar_numeroparte', 'Puede importar numeros de parte'),
+            ('puede_ver_costos_numeroparte', 'Puede ver costos de numeros de parte'),
         ]
 
 

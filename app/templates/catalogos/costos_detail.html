@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Costos {{ numero_parte }} - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Bitácora de costos</h1>
+        <p class="muted">
+            {{ numero_parte }}{% if catalogo %} · {{ catalogo.modelo }} · {{ catalogo.descripcion }}{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{% url 'catalogos:costos_list' %}">Volver al listado</a>
+        {% if catalogo and perms.catalogos.view_numeroparte %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:numero_parte_detail' catalogo.pk %}">Ver en catálogo</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card-grid">
+    <div class="card">
+        <strong>Mínimo histórico</strong>
+        <p>{{ minimo|floatformat:"-2"|default:"—" }}</p>
+    </div>
+    <div class="card">
+        <strong>Máximo</strong>
+        <p>{{ maximo|floatformat:"-2"|default:"—" }}</p>
+    </div>
+    <div class="card">
+        <strong>Usos</strong>
+        <p>{{ bitacora|length }}</p>
+    </div>
+    <div class="card">
+        <strong>Alertas</strong>
+        <p>
+            {% if total_alertas %}
+                <span class="badge badge-error">{{ total_alertas }}</span>
+            {% else %}
+                <span class="badge badge-ok">0</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <p class="muted">Cada uso se compara con el mínimo registrado antes de esa fecha; se alerta arriba de {{ umbral }}%.</p>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Fecha de uso</th>
+                    <th>Factura</th>
+                    <th>Serie</th>
+                    <th>Cantidad</th>
+                    <th>Costo unitario</th>
+                    <th>Mínimo previo</th>
+                    <th>Variación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for registro in bitacora %}
+                    <tr>
+                        <td>{{ registro.fecha|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if perms.conceptos.view_documentoconceptos %}
+                                <a href="{% url 'conceptos:documento_detail' registro.documento.pk %}">{{ registro.documento.folio }}</a>
+                            {% else %}
+                                {{ registro.documento.folio }}
+                            {% endif %}
+                        </td>
+                        <td>{{ registro.concepto.serie|default:"—" }}</td>
+                        <td>{{ registro.concepto.cantidad|floatformat:"-4" }}</td>
+                        <td>{{ registro.precio|floatformat:"-2" }}</td>
+                        <td>{{ registro.minimo_previo|floatformat:"-2"|default:"—" }}</td>
+                        <td>
+                            {% if registro.alerta %}
+                                <span class="badge badge-error">+{{ registro.variacion }}% alerta</span>
+                            {% elif registro.minimo_previo is None %}
+                                <span class="muted">Primer uso</span>
+                            {% elif registro.nuevo_minimo %}
+                                <span class="badge badge-ok">Nuevo mínimo</span>
+                            {% else %}
+                                {{ registro.variacion }}%
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="muted">Sin costos en facturas confirmadas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

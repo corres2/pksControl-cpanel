@@ -10,6 +10,9 @@
   descripción ya no separa grupos del mismo número de parte y modelo (los patrones aprobados dejaban de activarse).
 - Módulo de administración (grupo "Administradores" o superusuario): alta y edición de usuarios con
   permisos, descarga de tablas en Excel/CSV y estado del sistema, que deja de verse para los demás.
+- Costos de números de parte: último costo contra el mínimo histórico de facturas confirmadas, con badge
+  cuando lo supera en más de 20%, bitácora por número de parte con fechas de uso y alertas al capturar,
+  importar y revisar facturas en borrador. Permiso `puede_ver_costos_numeroparte`.
 - Después del login se entra al panel de inicio en lugar del estado del sistema.
 - Comando `recalcular_patrones` para regenerar la biblioteca después del deploy.
 

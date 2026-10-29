@@ -364,6 +364,12 @@
             color: var(--success);
         }
 
+        .alert-warning {
+            background: var(--warning-soft);
+            border-color: #fde68a;
+            color: var(--warning);
+        }
+
         .badge {
             border-radius: 999px;
             display: inline-flex;
@@ -498,6 +504,9 @@
             <p class="sidebar-title">Catalogos</p>
             {% if perms.catalogos.view_numeroparte %}
                 <a href="{% url 'catalogos:numeros_parte_list' %}">Numeros de parte</a>
+            {% endif %}
+            {% if perms.catalogos.puede_ver_costos_numeroparte %}
+                <a href="{% url 'catalogos:costos_list' %}">Costos de números de parte</a>
             {% endif %}
             {% if perms.catalogos.view_claveproductoserviciosat %}
                 <a href="{% url 'catalogos:sat_list' %}">Catálogo Carta Porte</a>

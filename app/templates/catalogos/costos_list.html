@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Costos de números de parte - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Costos de números de parte</h1>
+        <p class="muted">
+            Último costo de cada número de parte contra su mínimo histórico en facturas confirmadas.
+            Se alerta cuando lo supera en más de {{ umbral }}%.
+        </p>
+    </div>
+    <div class="page-actions">
+        {% if total_alertas %}
+            <span class="badge badge-error">{{ total_alertas }} con alerta</span>
+        {% else %}
+            <span class="badge badge-ok">Sin alertas</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <form class="form-grid" method="get">
+        <div class="card-grid">
+            <div class="form-field">
+                <label for="q">Número de parte</label>
+                <input id="q" type="search" name="q" value="{{ q }}" placeholder="Buscar número de parte">
+            </div>
+            <div class="form-field">
+                <label><input type="checkbox" name="alertas" value="1"{% if solo_alertas %} checked{% endif %}> Solo con alerta</label>
+            </div>
+        </div>
+        <div class="page-actions">
+            <button class="btn btn-primary" type="submit">Buscar</button>
+            <a class="btn btn-secondary" href="{% url 'catalogos:costos_list' %}">Limpiar filtros</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Número de parte</th>
+                    <th>Mínimo histórico</th>
+                    <th>Fecha del mínimo</th>
+                    <th>Último costo</th>
+                    <th>Último uso</th>
+                    <th>Variación</th>
+                    <th>Usos</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in page_obj %}
+                    <tr>
+                        <td>{{ fila.numero_parte }}</td>
+                        <td>{{ fila.minimo|floatformat:"-2" }}</td>
+                        <td>{{ fila.fecha_minimo|date:"Y-m-d" }}</td>
+                        <td>{{ fila.ultimo_precio|floatformat:"-2" }}</td>
+                        <td>{{ fila.ultimo_uso|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if fila.alerta %}
+                                <span class="badge badge-error" title="Supera el mínimo histórico en más de {{ umbral }}%">+{{ fila.variacion }}% alerta</span>
+                            {% elif fila.variacion %}
+                                +{{ fila.variacion }}%
+                            {% else %}
+                                <span class="muted">En mínimo</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ fila.usos }}</td>
+                        <td>
+                            <a class="btn btn-secondary" href="{% url 'catalogos:costos_detail' fila.numero_parte %}">Bitácora</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8" class="muted">No hay costos de facturas confirmadas que coincidan.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+        <div class="page-actions">
+            {% if page_obj.has_previous %}
+                <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+            {% endif %}
+            <span class="muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a class="btn btn-secondary" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

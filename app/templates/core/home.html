@@ -50,6 +50,13 @@
         </a>
     {% endif %}
 
+    {% if perms.catalogos.puede_ver_costos_numeroparte %}
+        <a class="quick-card" href="{% url 'catalogos:costos_list' %}">
+            <strong>Costos de números de parte</strong>
+            <span class="muted">Comparativa contra el mínimo histórico y alertas.</span>
+        </a>
+    {% endif %}
+
     {% if perms.catalogos.view_claveproductoserviciosat %}
         <a class="quick-card" href="{% url 'catalogos:sat_list' %}">
             <strong>Catálogo Carta Porte</strong>

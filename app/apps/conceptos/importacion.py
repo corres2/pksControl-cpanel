@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from django.db.models import Q
 
 from apps.catalogos.models import NumeroParte
+from apps.catalogos.services.costos import alerta_costo_para_sesion
 from apps.conceptos.models import Concepto, DocumentoConceptos, PatronSerie
 
 COLUMNAS_ESPERADAS = (
@@ -26,6 +27,12 @@ def analizar_archivo_conceptos(archivo, documento=None):
         _analizar_fila(indice, fila, documento=documento, series_archivo=series_archivo)
         for indice, fila in enumerate(filas_crudas, start=2)
     ]
+    for fila in filas:
+        fila['alerta_costo'] = (
+            alerta_costo_para_sesion(fila['datos']['numero_parte'], Decimal(fila['datos']['precio_unitario']))
+            if fila['valida']
+            else None
+        )
     resumen = {
         'filas_totales': len(filas),
         'validas': sum(1 for fila in filas if fila['valida']),
@@ -33,6 +40,7 @@ def analizar_archivo_conceptos(archivo, documento=None):
         'incompletas': sum(1 for fila in filas if fila['estado'] == 'incompleto'),
         'errores': sum(1 for fila in filas if fila['estado'] == 'error'),
         'duplicadas': sum(1 for fila in filas if fila['estado'] == 'duplicada'),
+        'alertas_costo': sum(1 for fila in filas if fila['alerta_costo']),
     }
     return {'resumen': resumen, 'filas': filas}
 

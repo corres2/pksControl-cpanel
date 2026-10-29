@@ -10,6 +10,9 @@
     </div>
     <div class="page-actions">
         <a class="btn btn-secondary" href="{% url 'catalogos:numeros_parte_list' %}">Volver al listado</a>
+        {% if perms.catalogos.puede_ver_costos_numeroparte %}
+            <a class="btn btn-secondary" href="{% url 'catalogos:costos_detail' numero_parte.numero_parte %}">Bitácora de costos</a>
+        {% endif %}
         {% if perms.catalogos.change_numeroparte %}
             <a class="btn btn-primary" href="{% url 'catalogos:numero_parte_update' numero_parte.pk %}">Editar</a>
             {% if numero_parte.activo %}
