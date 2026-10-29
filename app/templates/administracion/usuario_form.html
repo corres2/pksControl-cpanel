@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} - Sistema Django{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ titulo }}</h1>
+        <p class="muted">Los administradores ven todo; a los demás asígnales solo los permisos que usan.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="{% url 'administracion:usuarios_list' %}">Volver al listado</a>
+    </div>
+</div>
+
+<form class="form-grid" method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+        <div class="alert alert-error" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-grid">
+            {% for campo in form %}
+                {% if campo.name != 'permisos' %}
+                    <div class="form-field">
+                        {% if campo.field.widget.input_type == 'checkbox' %}
+                            <label>{{ campo }} {{ campo.label }}</label>
+                        {% else %}
+                            <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                            {{ campo }}
+                        {% endif %}
+                        {% if campo.help_text %}<span class="muted">{{ campo.help_text }}</span>{% endif %}
+                        {% if campo.errors %}<div class="field-error">{{ campo.errors }}</div>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card">
+        <fieldset>
+            <legend>{{ form.permisos.label }}</legend>
+            <p class="muted">No hace falta marcarlos si el usuario es administrador.</p>
+            <div class="card-grid">
+                {% for opcion in form.permisos %}
+                    <label>{{ opcion.tag }} {{ opcion.choice_label }}</label>
+                {% endfor %}
+            </div>
+        </fieldset>
+    </div>
+
+    <div class="page-actions">
+        <button class="btn btn-primary" type="submit">Guardar</button>
+        <a class="btn btn-secondary" href="{% url 'administracion:usuarios_list' %}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

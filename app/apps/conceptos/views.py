@@ -13,13 +13,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.catalogos.models import NumeroParte
+from apps.catalogos.services.costos import evaluar_costo, mensaje_alerta_costo
 from apps.conceptos.exportacion import exportar_documento_conceptos_docx
 from apps.conceptos.forms import ConceptoForm, DocumentoConceptosForm
 from apps.conceptos.importacion import (
     analizar_archivo_conceptos,
     confirmar_importacion_conceptos,
 )
-from apps.conceptos.services import analizar_historial_para_propuestas
 from apps.conceptos.models import (
     Concepto,
     DocumentoConceptos,
@@ -28,7 +28,7 @@ from apps.conceptos.models import (
     normalizar_texto,
     registrar_historial_concepto,
 )
-
+from apps.conceptos.services import analizar_historial_para_propuestas
 
 ACCION_BUSCAR_NUMERO_PARTE = 'buscar_numero_parte'
 ACCION_BUSCAR_SERIE = 'buscar_serie'
@@ -111,11 +111,24 @@ def documento_detail(request, pk):
         DocumentoConceptos.objects.select_related('usuario').prefetch_related('conceptos'),
         pk=pk,
     )
+    total_alertas_costo = 0
+    if documento.es_borrador:
+        # Los conceptos vienen del prefetch, asi que la plantilla ve el atributo agregado.
+        for concepto in documento.conceptos.all():
+            evaluacion = evaluar_costo(concepto.numero_parte, concepto.precio_unitario, excluir_documento=documento)
+            concepto.alerta_costo = evaluacion if evaluacion and evaluacion['alerta'] else None
+            total_alertas_costo += bool(concepto.alerta_costo)
     return render(
         request,
         'conceptos/documento_detail.html',
-        {'documento': documento},
+        {'documento': documento, 'total_alertas_costo': total_alertas_costo},
     )
+
+
+def _avisar_alerta_costo(request, concepto):
+    evaluacion = evaluar_costo(concepto.numero_parte, concepto.precio_unitario, excluir_documento=concepto.documento)
+    if evaluacion and evaluacion['alerta']:
+        messages.warning(request, mensaje_alerta_costo(evaluacion))
 
 
 @permission_required('conceptos.view_documentoconceptos')
@@ -312,6 +325,7 @@ def concepto_create(request, pk):
         concepto.documento = documento
         concepto.save()
         messages.success(request, 'Concepto agregado correctamente.')
+        _avisar_alerta_costo(request, concepto)
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     return render(
@@ -378,8 +392,9 @@ def concepto_update(request, pk, concepto_id):
         )
 
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        concepto = form.save()
         messages.success(request, 'Concepto actualizado correctamente.')
+        _avisar_alerta_costo(request, concepto)
         return redirect('conceptos:documento_detail', pk=documento.pk)
 
     return render(

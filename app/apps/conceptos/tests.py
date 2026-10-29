@@ -20,8 +20,6 @@ from apps.conceptos.models import (
 from apps.conceptos.services import analizar_historial_para_propuestas
 from apps.conceptos.views import (
     _buscar_sugerencias_historial,
-    conceptos_plantilla_csv,
-    conceptos_plantilla_xlsx,
 )
 
 
@@ -318,11 +316,22 @@ class PatronSerieAprendizajeTests(TestCase):
             ).exists()
         )
 
-    def test_colision_de_prefijo_bajo_umbral_queda_en_conflicto(self):
+    def test_prefijos_sin_traslape_no_colisionan_aunque_compartan_inicio(self):
         for serie in ('AB-001', 'AB-002'):
             self._evidencia(serie, numero_parte='NP-A')
         for serie in ('AB-101', 'AB-102'):
             self._evidencia(serie, numero_parte='NP-B')
+
+        analizar_historial_para_propuestas()
+
+        patrones = PatronSerie.objects.order_by('numero_parte')
+        self.assertEqual(patrones.count(), 2)
+        self.assertTrue(all(patron.estado == PatronSerie.ESTADO_EN_CRECIMIENTO for patron in patrones))
+
+    def test_prefijo_contenido_en_otro_de_distinta_parte_es_conflicto(self):
+        for serie in ('AB-001', 'AB-002'):
+            self._evidencia(serie, numero_parte='NP-A')
+        self._evidencia('AB-0019', numero_parte='NP-B')
 
         analizar_historial_para_propuestas()
 
@@ -343,6 +352,31 @@ class PatronSerieAprendizajeTests(TestCase):
         self.assertEqual(patron.prefix, 'QI14947')
         self.assertEqual(patron.estado, PatronSerie.ESTADO_APROBADO)
         self.assertTrue(patron.activo)
+
+    def test_prefijos_distintos_con_inicio_comun_no_colisionan(self):
+        for serie in ('5CD14947', '5CD14948', '5CD14949'):
+            self._evidencia(serie, numero_parte='NP-LAPTOP', modelo='LAPTOP')
+        for serie in ('5CD20001', '5CD20002', '5CD20003'):
+            self._evidencia(serie, numero_parte='NP-MONITOR', modelo='MONITOR')
+
+        analizar_historial_para_propuestas()
+
+        for numero_parte in ('NP-LAPTOP', 'NP-MONITOR'):
+            patron = PatronSerie.objects.get(numero_parte=numero_parte)
+            self.assertEqual(patron.estado, PatronSerie.ESTADO_APROBADO)
+            self.assertTrue(patron.activo)
+
+    def test_misma_parte_con_descripcion_distinta_no_tumba_patron(self):
+        for serie in ('ABC001', 'ABC002', 'ABC003'):
+            self._evidencia(serie, descripcion='Sensor')
+        self._evidencia('ABC004', descripcion='Sensor de temperatura')
+
+        analizar_historial_para_propuestas()
+
+        patron = PatronSerie.objects.get(activo=True)
+        self.assertEqual(patron.numero_parte, 'NP-001')
+        self.assertEqual(patron.estado, PatronSerie.ESTADO_APROBADO)
+        self.assertEqual(patron.series_unicas, 4)
 
     def test_mismo_prefijo_significativo_con_modelo_distinto_es_conflicto(self):
         for serie in ('AB-001', 'AB-002'):
@@ -504,7 +538,7 @@ class ConceptosViewsTests(TestCase):
         self.assertContains(response, 'autocomplete="off"')
 
     def test_autocomplete_por_serie_devuelve_patron_activo(self):
-        documento = self._crear_documento()
+        self._crear_documento()
         PatronSerie.objects.create(
             prefix='QI14947',
             numero_parte='XQ235U',
@@ -545,7 +579,7 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(len(ids), 1)
 
     def test_autocomplete_por_numero_parte_deduplica_patrones_equivalentes(self):
-        documento = self._crear_documento()
+        self._crear_documento()
         for prefix in ('NP-DEDUP-A', 'NP-DEDUP-B'):
             PatronSerie.objects.create(
                 prefix=prefix,
@@ -2680,3 +2714,16 @@ class ConceptosViewsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         documento.refresh_from_db()
         self.assertEqual(documento.status, DocumentoConceptos.STATUS_CANCELADO)
+
+
+class RecalcularPatronesComandoTests(TestCase):
+    def test_comando_recalcula_patrones_desde_historial(self):
+        for serie in ('RCP001', 'RCP002', 'RCP003'):
+            HistorialCoincidencia.objects.create(serie=serie, numero_parte='NP-RCP', modelo='MOD-R')
+        salida = StringIO()
+
+        call_command('recalcular_patrones', stdout=salida)
+
+        patron = PatronSerie.objects.get()
+        self.assertEqual(patron.estado, PatronSerie.ESTADO_APROBADO)
+        self.assertIn('Activos: 1', salida.getvalue())

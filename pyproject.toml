@@ -1,11 +1,17 @@
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
 ignore = []
 
+[tool.ruff.lint.per-file-ignores]
+"app/config/settings/*.py" = ["F403", "F405"]
+"**/migrations/*.py" = ["E501"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.dev"
+pythonpath = ["app"]
+testpaths = ["app"]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]

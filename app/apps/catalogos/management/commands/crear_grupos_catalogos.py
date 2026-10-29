@@ -1,7 +1,6 @@
 from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 
-
 GRUPOS_CATALOGOS = {
     'Catalogos - Consulta': [
         'catalogos.view_numeroparte',
@@ -15,6 +14,7 @@ GRUPOS_CATALOGOS = {
     ],
     'Catalogos - Auditoria': [
         'catalogos.puede_ver_historial_cargas_catalogo',
+        'catalogos.puede_ver_costos_numeroparte',
     ],
     'Catalogos - Administrador': [
         'catalogos.view_numeroparte',
@@ -29,6 +29,7 @@ GRUPOS_CATALOGOS = {
         'catalogos.puede_importar_claves_sat',
         'catalogos.view_cargacatalogo',
         'catalogos.puede_ver_historial_cargas_catalogo',
+        'catalogos.puede_ver_costos_numeroparte',
     ],
 }
 

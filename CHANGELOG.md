@@ -1,5 +1,21 @@
 # Changelog
 
+## Sin publicar
+
+- CI en GitHub Actions (ruff + pytest con MySQL) y configuración de pre-commit.
+- pytest corre desde la raíz; ruff con límite de 120 columnas y sin hallazgos.
+- Tests de inicio actualizados al nombre "Catálogo Carta Porte".
+- `CLAUDE.md` con convenciones y comandos del proyecto.
+- Biblioteca de series: la colisión de prefijos solo se marca cuando un prefijo contiene al otro, y la
+  descripción ya no separa grupos del mismo número de parte y modelo (los patrones aprobados dejaban de activarse).
+- Módulo de administración (grupo "Administradores" o superusuario): alta y edición de usuarios con
+  permisos, descarga de tablas en Excel/CSV y estado del sistema, que deja de verse para los demás.
+- Costos de números de parte: último costo contra el mínimo histórico de facturas confirmadas, con badge
+  cuando lo supera en más de 20%, bitácora por número de parte con fechas de uso y alertas al capturar,
+  importar y revisar facturas en borrador. Permiso `puede_ver_costos_numeroparte`.
+- Después del login se entra al panel de inicio en lugar del estado del sistema.
+- Comando `recalcular_patrones` para regenerar la biblioteca después del deploy.
+
 ## 0.1.1
 
 - Se agregan scripts PowerShell para Windows 11.

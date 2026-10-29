@@ -72,6 +72,16 @@ python app/manage.py collectstatic --noinput
 
 Despues reiniciar la Python App desde cPanel.
 
+Para que un usuario administre (usuarios, descarga de tablas y estado del sistema) debe ser superusuario
+o pertenecer al grupo `Administradores`, que crea la migración de `administracion`. Desde ahí se asigna a
+los demás en *Administración → Usuarios y permisos*.
+
+Si el release cambia las reglas de la biblioteca de patrones, recalcularla una vez:
+
+```bash
+python app/manage.py recalcular_patrones
+```
+
 ## Verificacion
 
 - Abrir la URL configurada en cPanel.

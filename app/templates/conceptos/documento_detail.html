@@ -119,6 +119,12 @@
     </div>
 </div>
 
+{% if total_alertas_costo %}
+    <div class="alert alert-warning" role="alert">
+        {{ total_alertas_costo }} concepto(s) con costo más de 20% arriba del mínimo histórico. Revísalos antes de confirmar.
+    </div>
+{% endif %}
+
 <div class="card">
     <div class="page-header">
         <div>
@@ -168,7 +174,12 @@
                         <td>{{ concepto.modelo }}</td>
                         <td>{{ concepto.descripcion }}</td>
                         <td>{{ concepto.cantidad|floatformat:"-4" }}</td>
-                        <td>{{ concepto.precio_unitario|floatformat:"-2" }}</td>
+                        <td>
+                            {{ concepto.precio_unitario|floatformat:"-2" }}
+                            {% if concepto.alerta_costo %}
+                                <span class="badge badge-error" title="Mínimo histórico {{ concepto.alerta_costo.minimo|floatformat:'-2' }} ({{ concepto.alerta_costo.folio_minimo }}, {{ concepto.alerta_costo.fecha_minimo|date:'Y-m-d' }})">+{{ concepto.alerta_costo.variacion }}%</span>
+                            {% endif %}
+                        </td>
                         <td>{{ concepto.total_concepto|floatformat:"-2" }}</td>
                         <td>
                             <div class="table-actions">

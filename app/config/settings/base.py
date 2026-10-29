@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -27,6 +28,7 @@ INSTALLED_APPS = [
     'apps.conceptos',
     'apps.catalogos',
     'apps.core',
+    'apps.administracion',
 ]
 
 MIDDLEWARE = [
@@ -53,6 +55,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.administracion.permisos.contexto_administrador',
             ],
         },
     },
@@ -87,5 +90,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 APP_VERSION = env('APP_VERSION', default='0.1.0')
 SERVER_NAME = env('SERVER_NAME', default='servidor-local')
 LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/sistema/status/'
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'

@@ -10,7 +10,6 @@ from apps.conceptos.models import (
     normalizar_texto,
 )
 
-
 MIN_SERIES_UNICAS = 3
 MIN_PREFIX_LEN = 3
 
@@ -30,9 +29,8 @@ def analizar_historial_para_propuestas(min_series=MIN_SERIES_UNICAS, min_prefix_
         numero_parte='',
     )
     grupos = defaultdict(list)
-    for evidencia in evidencias:
-        firma = _firma_evidencia(evidencia)
-        grupos[_firma_key(firma)].append(evidencia)
+    for evidencia in evidencias.order_by('-created_at', '-id'):
+        grupos[_firma_key(_firma_evidencia(evidencia))].append(evidencia)
 
     prefijos_por_firma = {}
     for firma_key, elementos in grupos.items():
@@ -48,13 +46,12 @@ def analizar_historial_para_propuestas(min_series=MIN_SERIES_UNICAS, min_prefix_
     patrones = []
     claves_vigentes = set()
     for firma_key, elementos in grupos.items():
-        firma = _firma_desde_key(firma_key)
+        firma = _firma_desde_key(firma_key, elementos)
         prefijo = _prefijo_comun(
             sorted({normalizar_texto(item.serie) for item in elementos if item.serie})
         )
         colision_prefijo = any(
-            otra_firma != firma_key
-            and len(_prefijo_comun(sorted((prefijo, otro_prefijo)))) >= min_prefix_len
+            otra_firma != firma_key and _prefijos_se_traslapan(prefijo, otro_prefijo, min_prefix_len)
             for otra_firma, otro_prefijo in prefijos_por_firma.items()
         )
         conflicto_numero_parte = len(numeros_por_prefijo[prefijo]) > 1
@@ -80,7 +77,6 @@ def _clave_patron(patron):
         patron.prefix,
         normalizar_texto(patron.numero_parte),
         normalizar_texto(firma.get('modelo', patron.modelo)),
-        normalizar_texto(firma.get('descripcion', patron.descripcion)),
     )
 
 
@@ -101,7 +97,9 @@ def _crear_o_actualizar_patron(
     conflicto_numero_parte=False,
 ):
     series_unicas = sorted({normalizar_texto(evidencia.serie) for evidencia in evidencias if evidencia.serie})
-    numero_partes = sorted({normalizar_texto(evidencia.numero_parte) for evidencia in evidencias if evidencia.numero_parte})
+    numero_partes = sorted(
+        {normalizar_texto(evidencia.numero_parte) for evidencia in evidencias if evidencia.numero_parte}
+    )
     modelo = firma['modelo']
     descripcion = firma['descripcion']
     numero_parte = firma['numero_parte']
@@ -170,19 +168,29 @@ def _firma_evidencia(evidencia):
 
 
 def _firma_key(firma):
+    # La descripcion no separa grupos: varia entre facturas para el mismo producto.
     return (
         firma['numero_parte'],
         firma['modelo'],
-        firma['descripcion'],
     )
 
 
-def _firma_desde_key(firma_key):
+def _firma_desde_key(firma_key, evidencias):
+    descripcion_reciente = next(
+        (normalizar_texto(item.descripcion) for item in evidencias if item.descripcion),
+        '',
+    )
     return {
         'numero_parte': firma_key[0],
         'modelo': firma_key[1],
-        'descripcion': firma_key[2],
+        'descripcion': descripcion_reciente,
     }
+
+
+def _prefijos_se_traslapan(prefijo, otro_prefijo, min_prefix_len):
+    # Solo hay ambiguedad si una serie podria empezar con ambos prefijos.
+    corto, largo = sorted((prefijo, otro_prefijo), key=len)
+    return len(corto) >= min_prefix_len and largo.startswith(corto)
 
 
 def _prefijo_comun(series):
@@ -225,6 +233,7 @@ def _firma_texto(firma_json):
 
 def _buscar_patron_compatible(prefix, numero_parte, firma):
     for patron in PatronSerie.objects.filter(prefix=prefix, numero_parte=numero_parte):
-        if not patron.firma_json or patron.firma_json == firma:
+        firma_patron = patron.firma_json or {}
+        if not firma_patron or normalizar_texto(firma_patron.get('modelo')) == firma['modelo']:
             return patron
     return None

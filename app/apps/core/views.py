@@ -7,6 +7,7 @@ from django.db import connection
 from django.shortcuts import render
 from django.utils import timezone
 
+from apps.administracion.permisos import administrador_requerido
 from apps.core.models import InstallationStatus
 
 
@@ -55,7 +56,7 @@ def _get_git_commit(installation_status):
     return result.stdout.strip() or 'No disponible'
 
 
-@login_required
+@administrador_requerido
 def system_status(request):
     installation_status = _get_latest_installation_status()
     context = {

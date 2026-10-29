@@ -364,6 +364,12 @@
             color: var(--success);
         }
 
+        .alert-warning {
+            background: var(--warning-soft);
+            border-color: #fde68a;
+            color: var(--warning);
+        }
+
         .badge {
             border-radius: 999px;
             display: inline-flex;
@@ -494,11 +500,13 @@
         <nav aria-label="Navegacion principal">
             <p class="sidebar-title">General</p>
             <a href="{% url 'home' %}">Inicio</a>
-            <a href="{% url 'system_status' %}">Estado del sistema</a>
 
             <p class="sidebar-title">Catalogos</p>
             {% if perms.catalogos.view_numeroparte %}
                 <a href="{% url 'catalogos:numeros_parte_list' %}">Numeros de parte</a>
+            {% endif %}
+            {% if perms.catalogos.puede_ver_costos_numeroparte %}
+                <a href="{% url 'catalogos:costos_list' %}">Costos de números de parte</a>
             {% endif %}
             {% if perms.catalogos.view_claveproductoserviciosat %}
                 <a href="{% url 'catalogos:sat_list' %}">Catálogo Carta Porte</a>
@@ -510,6 +518,13 @@
             {% if perms.conceptos.view_documentoconceptos %}
                 <p class="sidebar-title">Operación</p>
                 <a href="{% url 'conceptos:documentos_list' %}">Cargar facturas</a>
+            {% endif %}
+
+            {% if es_administrador %}
+                <p class="sidebar-title">Administración</p>
+                <a href="{% url 'administracion:usuarios_list' %}">Usuarios y permisos</a>
+                <a href="{% url 'administracion:exportaciones' %}">Descargar tablas</a>
+                <a href="{% url 'system_status' %}">Estado del sistema</a>
             {% endif %}
 
             <p class="sidebar-title">Sesion</p>

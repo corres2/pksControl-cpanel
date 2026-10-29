@@ -1,5 +1,4 @@
-from io import BytesIO
-from io import StringIO
+from io import BytesIO, StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -25,17 +24,14 @@ from apps.catalogos.views import (
     descargar_plantilla_numeros_parte,
     descargar_plantilla_numeros_parte_xlsx,
     descargar_plantilla_sat,
-    descargar_plantilla_sat_xlsx,
     exportar_cargas_csv,
     exportar_numeros_parte_csv,
     exportar_sat_csv,
-    exportar_sat_xlsx,
     importar_numeros_parte,
     importar_sat,
     numeros_parte_list,
     sat_list,
 )
-
 
 GRUPOS_ESPERADOS = {
     'Catalogos - Consulta': {
@@ -50,6 +46,7 @@ GRUPOS_ESPERADOS = {
     },
     'Catalogos - Auditoria': {
         'puede_ver_historial_cargas_catalogo',
+        'puede_ver_costos_numeroparte',
     },
     'Catalogos - Administrador': {
         'view_numeroparte',
@@ -64,6 +61,7 @@ GRUPOS_ESPERADOS = {
         'puede_importar_claves_sat',
         'view_cargacatalogo',
         'puede_ver_historial_cargas_catalogo',
+        'puede_ver_costos_numeroparte',
     },
 }
 
@@ -94,9 +92,11 @@ def _user(con_permiso=True, superusuario=False, permisos=None):
     def has_perm(permiso):
         return con_permiso or superusuario or permiso in permisos
 
+    sin_grupos = SimpleNamespace(filter=lambda **kwargs: SimpleNamespace(exists=lambda: False))
     return SimpleNamespace(
         is_authenticated=True,
         is_superuser=superusuario,
+        groups=sin_grupos,
         has_perm=has_perm,
         has_perms=lambda requeridos: all(has_perm(permiso) for permiso in requeridos),
         get_username=lambda: 'usuario.prueba',
@@ -367,6 +367,7 @@ class ImportarClavesSATCSVTests(SimpleTestCase):
 
     def test_importa_xlsx_desde_hoja_oficial_y_por_nombre(self):
         from datetime import datetime
+
         from openpyxl import Workbook
 
         workbook = Workbook()
@@ -374,7 +375,14 @@ class ImportarClavesSATCSVTests(SimpleTestCase):
         hoja.title = 'c_ClaveProdServCP'
         hoja.append(['Metadatos'])
         hoja.append([])
-        hoja.append(['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'])
+        hoja.append([
+            'c_ClaveProdServ',
+            'Descripción',
+            'Palabras similares',
+            'Material Peligroso',
+            'FechaInicioVigencia',
+            'FechaFinVigencia',
+        ])
         hoja.append([1010101, 'Descripción oficial', 'ejemplo', 1, datetime(2026, 1, 2), None])
         contenido = BytesIO()
         workbook.save(contenido)
@@ -1830,3 +1838,154 @@ class CatalogosViewsTests(SimpleTestCase):
             response['Content-Disposition'],
         )
         self.assertIn('c_ClaveProdServ,Descripción,Palabras similares,Material Peligroso', contenido)
+
+
+class CostosNumeroParteTests(TestCase):
+    def setUp(self):
+        from apps.conceptos.models import DocumentoConceptos
+
+        self.DocumentoConceptos = DocumentoConceptos
+        self.user = get_user_model().objects.create_user(username='costos', password='Clave-segura-2026')
+        self.user.user_permissions.add(
+            Permission.objects.get(codename='puede_ver_costos_numeroparte'),
+            Permission.objects.get(codename='view_documentoconceptos'),
+            Permission.objects.get(codename='add_documentoconceptos'),
+            Permission.objects.get(codename='change_documentoconceptos'),
+        )
+        self.client.force_login(self.user)
+
+    def _factura(self, *precios, numero_parte='NP-COSTO', status='confirmado'):
+        from apps.conceptos.models import Concepto
+
+        documento = self.DocumentoConceptos.objects.create(status=self.DocumentoConceptos.STATUS_BORRADOR)
+        for precio in precios:
+            Concepto.objects.create(
+                documento=documento,
+                numero_parte=numero_parte,
+                cantidad=1,
+                precio_unitario=precio,
+            )
+        documento.status = status
+        documento.save(update_fields=['status'])
+        return documento
+
+    def test_resumen_alerta_si_ultimo_costo_supera_20_por_ciento_del_minimo(self):
+        from decimal import Decimal
+
+        from apps.catalogos.services.costos import resumen_costos
+
+        self._factura('100')
+        self._factura('110')
+        self._factura('121')
+        self._factura('50', numero_parte='NP-ESTABLE')
+        self._factura('59', numero_parte='NP-ESTABLE')
+
+        filas = {fila['numero_parte']: fila for fila in resumen_costos()}
+
+        self.assertEqual(filas['NP-COSTO']['minimo'], Decimal('100'))
+        self.assertEqual(filas['NP-COSTO']['variacion'], Decimal('21.0'))
+        self.assertTrue(filas['NP-COSTO']['alerta'])
+        self.assertFalse(filas['NP-ESTABLE']['alerta'])
+        self.assertEqual([fila['numero_parte'] for fila in resumen_costos(solo_alertas=True)], ['NP-COSTO'])
+
+    def test_exactamente_20_por_ciento_no_alerta(self):
+        from apps.catalogos.services.costos import resumen_costos
+
+        self._factura('100')
+        self._factura('120')
+
+        self.assertFalse(resumen_costos()[0]['alerta'])
+
+    def test_ignora_borradores_cancelados_y_precio_cero(self):
+        from apps.catalogos.services.costos import resumen_costos
+
+        self._factura('100')
+        self._factura('500', status='borrador')
+        self._factura('500', status='cancelado')
+        self._factura('0')
+
+        fila = resumen_costos()[0]
+        self.assertEqual(fila['usos'], 1)
+        self.assertFalse(fila['alerta'])
+
+    def test_bitacora_compara_contra_minimo_previo(self):
+        from apps.catalogos.services.costos import bitacora_costos
+
+        self._factura('100')
+        self._factura('90')
+        self._factura('130')
+
+        bitacora = bitacora_costos('np-costo')
+
+        self.assertEqual([str(registro['precio']) for registro in bitacora], ['100.000000', '90.000000', '130.000000'])
+        self.assertIsNone(bitacora[0]['minimo_previo'])
+        self.assertTrue(bitacora[1]['nuevo_minimo'])
+        self.assertTrue(bitacora[2]['alerta'])
+
+    def test_listado_muestra_badge_y_detalle_la_bitacora(self):
+        self._factura('100')
+        documento = self._factura('150')
+
+        listado = self.client.get(reverse('catalogos:costos_list'))
+        detalle = self.client.get(reverse('catalogos:costos_detail', args=['NP-COSTO']))
+
+        self.assertContains(listado, '+50.0% alerta')
+        self.assertContains(listado, reverse('catalogos:costos_detail', args=['NP-COSTO']))
+        self.assertContains(detalle, documento.folio)
+        self.assertContains(detalle, '+50.0% alerta')
+
+    def test_costos_requieren_permiso(self):
+        sin_permiso = get_user_model().objects.create_user(username='sin.permiso', password='Clave-segura-2026')
+        self.client.force_login(sin_permiso)
+
+        response = self.client.get(reverse('catalogos:costos_list'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response['Location'])
+
+    def test_detalle_de_borrador_marca_concepto_con_alerta(self):
+        self._factura('100')
+        borrador = self._factura('130', status='borrador')
+
+        response = self.client.get(reverse('conceptos:documento_detail', args=[borrador.pk]))
+
+        self.assertContains(response, '+30.0%')
+        self.assertContains(response, 'arriba del mínimo histórico')
+
+    def test_importacion_marca_fila_con_alerta_de_costo(self):
+        from apps.conceptos.importacion import analizar_archivo_conceptos
+
+        self._factura('100')
+        archivo = SimpleUploadedFile(
+            'conceptos.csv',
+            'numero_parte,serie,modelo,descripcion,cantidad,precio_unitario\n'
+            'NP-COSTO,S1,,Pieza,1,150\n'
+            'NP-COSTO,S2,,Pieza,1,110\n'.encode(),
+        )
+
+        preview = analizar_archivo_conceptos(archivo)
+
+        self.assertEqual(preview['resumen']['alertas_costo'], 1)
+        self.assertEqual(preview['filas'][0]['alerta_costo']['variacion'], '50.0')
+        self.assertIsNone(preview['filas'][1]['alerta_costo'])
+
+    def test_captura_manual_avisa_alerta_de_costo(self):
+        self._factura('100')
+        borrador = self._factura(status='borrador')
+
+        response = self.client.post(
+            reverse('conceptos:concepto_create', args=[borrador.pk]),
+            {
+                'numero_parte': 'NP-COSTO',
+                'serie': 'S-MAN',
+                'modelo': '',
+                'descripcion': 'Pieza',
+                'cantidad': '1',
+                'precio_unitario': '125',
+                'orden': '1',
+                'accion': 'guardar',
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, 'Alerta de costo: NP-COSTO está 25.0% arriba del mínimo histórico')

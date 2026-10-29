@@ -1,5 +1,5 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 
 
 class CargaCatalogo(models.Model):
@@ -62,6 +62,7 @@ class NumeroParte(models.Model):
     class Meta:
         permissions = [
             ('puede_importar_numeroparte', 'Puede importar numeros de parte'),
+            ('puede_ver_costos_numeroparte', 'Puede ver costos de numeros de parte'),
         ]
 
 

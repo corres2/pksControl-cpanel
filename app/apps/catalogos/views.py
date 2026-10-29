@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 
 from apps.catalogos.forms import CSVUploadForm, NumeroParteForm
 from apps.catalogos.models import CargaCatalogo, ClaveProductoServicioSAT, NumeroParte
+from apps.catalogos.services.costos import UMBRAL_ALERTA, bitacora_costos, resumen_costos
 from apps.catalogos.services.importacion import (
     analizar_numeros_parte_csv,
     guardar_numeros_parte_desde_filas,
@@ -22,6 +23,14 @@ from apps.catalogos.services.importacion import (
 )
 
 PREVIEW_NUMEROS_PARTE_SESSION_KEY = 'catalogos_preview_numeros_parte'
+ENCABEZADOS_SAT = [
+    'c_ClaveProdServ',
+    'Descripción',
+    'Palabras similares',
+    'Material Peligroso',
+    'FechaInicioVigencia',
+    'FechaFinVigencia',
+]
 
 
 def _datetime_en_dia(fecha, hora):
@@ -166,7 +175,7 @@ def descargar_plantilla_sat(request):
     return _crear_csv_descarga(
         'plantilla_catalogo_carta_porte.csv',
         [
-            ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'],
+            ENCABEZADOS_SAT,
             ['01010101', 'Ejemplo', '', '0', '', ''],
         ],
     )
@@ -177,7 +186,7 @@ def descargar_plantilla_sat_xlsx(request):
     return _crear_xlsx_descarga(
         'plantilla_catalogo_carta_porte.xlsx',
         [
-            ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia'],
+            ENCABEZADOS_SAT,
             ['01010101', 'Ejemplo', '', '0', '', ''],
         ],
     )
@@ -402,9 +411,7 @@ def exportar_sat_csv(request):
     response.write('\ufeff')
 
     writer = csv.writer(response)
-    writer.writerow(
-        ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia']
-    )
+    writer.writerow(ENCABEZADOS_SAT)
     for item in queryset:
         writer.writerow(
             [
@@ -423,9 +430,7 @@ def exportar_sat_csv(request):
 @permission_required('catalogos.view_claveproductoserviciosat')
 def exportar_sat_xlsx(request):
     queryset, _q, _iva, _ieps, _vigente = _claves_sat_filtradas(request)
-    filas = [
-        ['c_ClaveProdServ', 'Descripción', 'Palabras similares', 'Material Peligroso', 'FechaInicioVigencia', 'FechaFinVigencia']
-    ]
+    filas = [ENCABEZADOS_SAT]
     filas.extend(
         [
             item.clave,
@@ -619,3 +624,45 @@ def _crear_xlsx_descarga(nombre_archivo, filas):
     )
     response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
     return response
+
+
+@permission_required('catalogos.puede_ver_costos_numeroparte')
+def costos_list(request):
+    q = request.GET.get('q', '').strip()
+    solo_alertas = request.GET.get('alertas') == '1'
+    filas = resumen_costos(q=q, solo_alertas=solo_alertas)
+    page_obj = Paginator(filas, 25).get_page(request.GET.get('page'))
+    filtros = request.GET.copy()
+    filtros.pop('page', None)
+    return render(
+        request,
+        'catalogos/costos_list.html',
+        {
+            'page_obj': page_obj,
+            'q': q,
+            'solo_alertas': solo_alertas,
+            'total_alertas': sum(1 for fila in filas if fila['alerta']),
+            'umbral': int(UMBRAL_ALERTA * 100),
+            'querystring': filtros.urlencode(),
+        },
+    )
+
+
+@permission_required('catalogos.puede_ver_costos_numeroparte')
+def costos_detail(request, numero_parte):
+    numero_parte = numero_parte.strip().upper()
+    bitacora = bitacora_costos(numero_parte)
+    precios = [registro['precio'] for registro in bitacora]
+    return render(
+        request,
+        'catalogos/costos_detail.html',
+        {
+            'numero_parte': numero_parte,
+            'catalogo': NumeroParte.objects.filter(numero_parte__iexact=numero_parte).first(),
+            'bitacora': list(reversed(bitacora)),
+            'minimo': min(precios) if precios else None,
+            'maximo': max(precios) if precios else None,
+            'total_alertas': sum(1 for registro in bitacora if registro['alerta']),
+            'umbral': int(UMBRAL_ALERTA * 100),
+        },
+    )

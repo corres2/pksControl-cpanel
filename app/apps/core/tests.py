@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.core.exceptions import PermissionDenied
 from django.test import RequestFactory, SimpleTestCase
 from django.urls import reverse
 
@@ -13,9 +14,11 @@ def _user(con_permiso=True, superusuario=False, permisos=None):
     def has_perm(permiso):
         return con_permiso or superusuario or permiso in permisos
 
+    sin_grupos = SimpleNamespace(filter=lambda **kwargs: SimpleNamespace(exists=lambda: False))
     return SimpleNamespace(
         is_authenticated=True,
         is_superuser=superusuario,
+        groups=sin_grupos,
         has_perm=has_perm,
         get_username=lambda: 'usuario.prueba',
     )
@@ -44,15 +47,16 @@ class HomeDashboardTests(SimpleTestCase):
         self.assertIn('Panel de inicio', contenido)
         self.assertIn('Bienvenido, usuario.prueba.', contenido)
 
-    def test_usuario_sin_permisos_ve_estado_pero_no_catalogos(self):
+    def test_usuario_sin_permisos_no_ve_estado_ni_catalogos(self):
         response = self._render_home(_user(False))
         contenido = response.content.decode('utf-8')
 
-        self.assertIn('Estado del sistema', contenido)
+        self.assertNotIn('Estado del sistema', contenido)
+        self.assertNotIn('Usuarios y permisos', contenido)
         self.assertNotIn('Numeros de parte', contenido)
         self.assertNotIn('Importar numeros de parte', contenido)
-        self.assertNotIn('Claves SAT', contenido)
-        self.assertNotIn('Importar claves SAT', contenido)
+        self.assertNotIn('Catálogo Carta Porte', contenido)
+        self.assertNotIn('Importar Carta Porte', contenido)
         self.assertNotIn('Historial de cargas', contenido)
 
     def test_usuario_con_permiso_view_numeroparte_ve_acceso(self):
@@ -81,14 +85,14 @@ class HomeDashboardTests(SimpleTestCase):
             _user(False, permisos={'catalogos.view_claveproductoserviciosat'})
         )
 
-        self.assertContains(response, 'Claves SAT')
+        self.assertContains(response, 'Catálogo Carta Porte')
 
     def test_usuario_con_permiso_importar_sat_ve_acceso(self):
         response = self._render_home(
             _user(False, permisos={'catalogos.puede_importar_claves_sat'})
         )
 
-        self.assertContains(response, 'Importar claves SAT')
+        self.assertContains(response, 'Importar Carta Porte')
 
     def test_usuario_con_permiso_historial_ve_acceso(self):
         response = self._render_home(
@@ -104,8 +108,8 @@ class HomeDashboardTests(SimpleTestCase):
         self.assertIn('Estado del sistema', contenido)
         self.assertIn('Numeros de parte', contenido)
         self.assertIn('Importar numeros de parte', contenido)
-        self.assertIn('Claves SAT', contenido)
-        self.assertIn('Importar claves SAT', contenido)
+        self.assertIn('Catálogo Carta Porte', contenido)
+        self.assertIn('Importar Carta Porte', contenido)
         self.assertIn('Historial de cargas', contenido)
 
 
@@ -124,9 +128,16 @@ class SystemStatusViewTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_authenticated_user_can_view_status(self):
+    def test_usuario_no_administrador_no_ve_estado(self):
         request = self.factory.get(reverse('system_status'))
         request.user = _user(True)
+
+        with self.assertRaises(PermissionDenied):
+            system_status(request)
+
+    def test_administrador_ve_estado(self):
+        request = self.factory.get(reverse('system_status'))
+        request.user = _user(True, superusuario=True)
 
         with (
             patch('apps.core.views._get_database_status', return_value='OK'),
