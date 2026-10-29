@@ -6,6 +6,9 @@
 - pytest corre desde la raíz; ruff con límite de 120 columnas y sin hallazgos.
 - Tests de inicio actualizados al nombre "Catálogo Carta Porte".
 - `CLAUDE.md` con convenciones y comandos del proyecto.
+- Biblioteca de series: la colisión de prefijos solo se marca cuando un prefijo contiene al otro, y la
+  descripción ya no separa grupos del mismo número de parte y modelo (los patrones aprobados dejaban de activarse).
+- Comando `recalcular_patrones` para regenerar la biblioteca después del deploy.
 
 ## 0.1.1
 

@@ -72,6 +72,12 @@ python app/manage.py collectstatic --noinput
 
 Despues reiniciar la Python App desde cPanel.
 
+Si el release cambia las reglas de la biblioteca de patrones, recalcularla una vez:
+
+```bash
+python app/manage.py recalcular_patrones
+```
+
 ## Verificacion
 
 - Abrir la URL configurada en cPanel.
